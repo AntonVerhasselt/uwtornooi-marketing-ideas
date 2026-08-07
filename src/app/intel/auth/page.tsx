@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntelNav } from "@/components/intel/IntelNav";
 import { getAuthStatus } from "@/lib/social-auth";
 
 export const dynamic = "force-dynamic";
@@ -63,12 +63,7 @@ export default function AuthPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:px-8 sm:py-14">
-      <p className="mb-2 text-sm text-ink-muted">
-        <Link href="/intel" className="text-green-dark hover:underline">
-          Tournament intel
-        </Link>{" "}
-        / Social login
-      </p>
+      <IntelNav current="/intel/auth" />
       <h1 className="ut-display mb-3 text-4xl font-extrabold text-ink">
         Social login
       </h1>

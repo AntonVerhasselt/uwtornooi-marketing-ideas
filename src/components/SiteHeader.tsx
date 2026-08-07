@@ -29,7 +29,7 @@ export function SiteHeader() {
             href="/intel"
             className="rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink"
           >
-            Tournament intel
+            Lead CRM
           </Link>
           <Link
             href="/intel/auth"
