@@ -1,18 +1,66 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = process.env.SQLITE_PATH || path.join(DATA_DIR, "tournament-intel.db");
+const BUNDLED_DB_PATH =
+  process.env.SQLITE_PATH || path.join(DATA_DIR, "tournament-intel.db");
 
 let dbInstance: Database.Database | null = null;
+let resolvedDbPath: string | null = null;
+
+function isServerless(): boolean {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+/**
+ * On Vercel/Lambda the deploy FS is read-only. Copy the bundled DB into /tmp
+ * so SQLite can open it (and optionally accept ephemeral CRM writes).
+ */
+function resolveDbPath(): string {
+  if (resolvedDbPath) return resolvedDbPath;
+
+  if (!isServerless()) {
+    fs.mkdirSync(path.dirname(BUNDLED_DB_PATH), { recursive: true });
+    resolvedDbPath = BUNDLED_DB_PATH;
+    return resolvedDbPath;
+  }
+
+  const tmpPath = path.join(os.tmpdir(), "tournament-intel.db");
+  const sourceCandidates = [
+    BUNDLED_DB_PATH,
+    path.join(process.cwd(), "data", "tournament-intel.db"),
+  ];
+  const source = sourceCandidates.find((p) => fs.existsSync(p));
+  if (!source) {
+    throw new Error(
+      `SQLite database not found. Looked in: ${sourceCandidates.join(", ")}`,
+    );
+  }
+
+  // Refresh /tmp copy when the bundled DB is newer (new deploy).
+  let needsCopy = !fs.existsSync(tmpPath);
+  if (!needsCopy) {
+    const srcStat = fs.statSync(source);
+    const tmpStat = fs.statSync(tmpPath);
+    needsCopy = srcStat.mtimeMs > tmpStat.mtimeMs || srcStat.size !== tmpStat.size;
+  }
+  if (needsCopy) {
+    fs.copyFileSync(source, tmpPath);
+  }
+
+  resolvedDbPath = tmpPath;
+  return resolvedDbPath;
+}
 
 export function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
 
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
+  const dbPath = resolveDbPath();
+  const db = new Database(dbPath);
+  // WAL needs sidecar files; avoid it on read-only / ephemeral hosts.
+  db.pragma(isServerless() ? "journal_mode = DELETE" : "journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   migrate(db);
   dbInstance = db;
@@ -20,7 +68,7 @@ export function getDb(): Database.Database {
 }
 
 export function getDbPath(): string {
-  return DB_PATH;
+  return resolveDbPath();
 }
 
 function migrate(db: Database.Database): void {
