@@ -16,14 +16,45 @@ export default function ClubDataPage() {
 
   return (
     <IdeaPageShell idea={idea}>
+      <section className="rounded-[11px] border border-green-dark/20 bg-green-tint/70 p-6 shadow-[var(--shadow-soft)] sm:p-7">
+        <h2 className="ut-display mb-2 text-xl font-extrabold text-ink">
+          View the data
+        </h2>
+        <p className="mb-5 text-[15px] leading-relaxed text-ink-muted">
+          The lead CRM lives at{" "}
+          <code className="rounded bg-bg-elevated px-1.5 py-0.5 text-xs text-ink">
+            /intel
+          </code>
+          : upcoming tournament leads, club contacts, Facebook / Instagram /
+          website links, and the source post or blog for each signal.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/intel"
+            className="rounded-[11px] bg-green-dark px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            Open lead CRM
+          </Link>
+          <Link
+            href="/intel/clubs?upcoming=1"
+            className="rounded-[11px] border border-border bg-bg-elevated px-4 py-2.5 text-sm font-medium text-ink hover:bg-bg"
+          >
+            Clubs with upcoming tournaments
+          </Link>
+          <Link
+            href="/intel/clubs"
+            className="rounded-[11px] border border-border bg-bg-elevated px-4 py-2.5 text-sm font-medium text-ink hover:bg-bg"
+          >
+            All clubs
+          </Link>
+        </div>
+      </section>
+
       <Section title="Status">
         <p>
-          MVP is implemented under{" "}
-          <Link href="/intel" className="font-medium text-green-dark hover:underline">
-            /intel
-          </Link>
-          . Pipeline: RBFA import → website crawl → Facebook/Instagram/blog scrape
-          → GPT-5.6 Luna classification → SQLite tournament DB.
+          MVP is live. Pipeline: RBFA import → website crawl →
+          Facebook/Instagram/blog scrape → GPT-5.6 Luna classification → SQLite
+          tournament DB + CRM UI.
         </p>
       </Section>
 
@@ -33,10 +64,13 @@ export default function ClubDataPage() {
             Import Antwerp provincial clubs from Voetbal Vlaanderen GraphQL
             (`getTeamsInSeries` + `getClubInfo`).
           </li>
-          <li>Crawl each club website for Facebook, Instagram, and tournament pages.</li>
           <li>
-            Scrape ~16 months of Facebook / Instagram / blog content with a custom
-            Playwright + Cheerio scraper.
+            Crawl each club website for Facebook, Instagram, and tournament
+            pages.
+          </li>
+          <li>
+            Scrape ~16 months of Facebook / Instagram / blog content with a
+            custom Playwright + Cheerio scraper.
           </li>
           <li>
             Analyze posts in batches with <strong>GPT-5.6 Luna</strong> (medium
@@ -48,6 +82,7 @@ export default function ClubDataPage() {
       <Section title="Commands">
         <ul className="list-disc space-y-2 pl-5 font-mono text-sm">
           <li>npm run intel:import</li>
+          <li>npm run intel:contacts</li>
           <li>npm run intel:crawl</li>
           <li>npm run intel:scrape</li>
           <li>npm run intel:analyze</li>
