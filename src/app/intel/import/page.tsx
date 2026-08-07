@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntelNav } from "@/components/intel/IntelNav";
 import { AddClubForm, CsvImportForm } from "./ImportForms";
 
 export const metadata = {
@@ -8,12 +8,7 @@ export const metadata = {
 export default function ImportPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:px-8 sm:py-14">
-      <p className="mb-2 text-sm text-ink-muted">
-        <Link href="/intel" className="text-green-dark hover:underline">
-          Tournament intel
-        </Link>{" "}
-        / Import
-      </p>
+      <IntelNav current="/intel/import" />
       <h1 className="ut-display mb-3 text-4xl font-extrabold text-ink">
         Import clubs
       </h1>
@@ -22,6 +17,10 @@ export default function ImportPage() {
         imported from Voetbal Vlaanderen with{" "}
         <code className="rounded bg-green-tint px-1.5 py-0.5 text-xs">
           npm run intel:import
+        </code>
+        . Refresh RBFA contacts with{" "}
+        <code className="rounded bg-green-tint px-1.5 py-0.5 text-xs">
+          npm run intel:contacts
         </code>
         .
       </p>

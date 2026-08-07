@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "intel:import": "tsx scripts/import-rbfa.ts",
+    "intel:contacts": "tsx scripts/enrich-contacts.ts",
     "intel:crawl": "tsx scripts/crawl-websites.ts",
     "intel:scrape": "tsx scripts/scrape-social.ts",
     "intel:analyze": "tsx scripts/analyze-posts.ts",

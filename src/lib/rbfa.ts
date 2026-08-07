@@ -31,12 +31,31 @@ export type SeriesTeam = {
   teamId: string;
 };
 
+export type ClubContactInfo = {
+  firstName: string | null;
+  lastName: string | null;
+  functionName: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
 export type ClubInfo = {
   id: string;
   name: string;
   website: string | null;
   locality: string | null;
+  contacts: ClubContactInfo[];
 };
+
+function firstString(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item === "string" && item.trim()) return item.trim();
+    }
+  }
+  return null;
+}
 
 async function rbfaGraphql<T>(
   operationName: string,
@@ -118,6 +137,13 @@ export async function getClubInfo(clubId: string): Promise<ClubInfo | null> {
         name: string;
         website: string | null;
         address?: { localityName?: string | null } | null;
+        contacts?: Array<{
+          firstName?: string | null;
+          lastName?: string | null;
+          functionName?: string | null;
+          mail?: string | string[] | null;
+          phone?: string | string[] | null;
+        }> | null;
       } | null;
     };
     errors?: Array<{ message: string }>;
@@ -134,13 +160,23 @@ export async function getClubInfo(clubId: string): Promise<ClubInfo | null> {
       ? info.website.trim()
       : null;
 
+  const contacts: ClubContactInfo[] = (info.contacts || []).map((c) => ({
+    firstName: c.firstName?.trim() || null,
+    lastName: c.lastName?.trim() || null,
+    functionName: c.functionName?.trim() || null,
+    email: firstString(c.mail),
+    phone: firstString(c.phone),
+  }));
+
   return {
     id: info.id,
     name: info.name,
     website,
     locality: info.address?.localityName || null,
+    contacts,
   };
 }
+
 
 export async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));

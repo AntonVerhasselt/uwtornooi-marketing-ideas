@@ -100,13 +100,53 @@ function migrate(db: Database.Database): void {
       FOREIGN KEY (club_id) REFERENCES clubs(id)
     );
 
+    CREATE TABLE IF NOT EXISTS club_contacts (
+      id INTEGER PRIMARY KEY,
+      club_id INTEGER NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
+      function_name TEXT,
+      email TEXT,
+      phone TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (club_id) REFERENCES clubs(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_clubs_name ON clubs(name);
     CREATE INDEX IF NOT EXISTS idx_posts_club ON posts(club_id);
     CREATE INDEX IF NOT EXISTS idx_tournaments_club ON tournaments(club_id);
     CREATE INDEX IF NOT EXISTS idx_tournaments_event ON tournaments(event_date);
     CREATE INDEX IF NOT EXISTS idx_candidate_analyzed ON candidate_posts(analyzed);
+    CREATE INDEX IF NOT EXISTS idx_contacts_club ON club_contacts(club_id);
   `);
+
+  // Lightweight CRM columns (safe to re-run)
+  const clubCols = new Set(
+    (
+      db.prepare(`PRAGMA table_info(clubs)`).all() as Array<{ name: string }>
+    ).map((c) => c.name),
+  );
+  if (!clubCols.has("crm_status")) {
+    db.exec(
+      `ALTER TABLE clubs ADD COLUMN crm_status TEXT NOT NULL DEFAULT 'new'`,
+    );
+  }
+  if (!clubCols.has("crm_notes")) {
+    db.exec(`ALTER TABLE clubs ADD COLUMN crm_notes TEXT`);
+  }
+  if (!clubCols.has("last_contacted_at")) {
+    db.exec(`ALTER TABLE clubs ADD COLUMN last_contacted_at DATETIME`);
+  }
 }
+
+export type CrmStatus =
+  | "new"
+  | "to_contact"
+  | "contacted"
+  | "interested"
+  | "not_interested"
+  | "won"
+  | "deferred";
 
 export type ClubRow = {
   id: number;
@@ -118,6 +158,20 @@ export type ClubRow = {
   series_names: string | null;
   locality: string | null;
   crawled_at: string | null;
+  created_at: string;
+  crm_status: CrmStatus;
+  crm_notes: string | null;
+  last_contacted_at: string | null;
+};
+
+export type ClubContactRow = {
+  id: number;
+  club_id: number;
+  first_name: string | null;
+  last_name: string | null;
+  function_name: string | null;
+  email: string | null;
+  phone: string | null;
   created_at: string;
 };
 
@@ -156,4 +210,39 @@ export function logScrape(
       `INSERT INTO scrape_logs (club_id, type, status, message) VALUES (?, ?, ?, ?)`,
     )
     .run(clubId, type, status, message);
+}
+
+export type ContactInput = {
+  firstName: string | null;
+  lastName: string | null;
+  functionName: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+/** Replace all stored contacts for a club. */
+export function replaceClubContacts(
+  clubDbId: number,
+  contacts: ContactInput[],
+): void {
+  const db = getDb();
+  const del = db.prepare(`DELETE FROM club_contacts WHERE club_id = ?`);
+  const insert = db.prepare(`
+    INSERT INTO club_contacts (club_id, first_name, last_name, function_name, email, phone)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  const tx = db.transaction((rows: ContactInput[]) => {
+    del.run(clubDbId);
+    for (const c of rows) {
+      insert.run(
+        clubDbId,
+        c.firstName,
+        c.lastName,
+        c.functionName,
+        c.email,
+        c.phone,
+      );
+    }
+  });
+  tx(contacts);
 }

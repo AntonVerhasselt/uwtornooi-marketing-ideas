@@ -1,4 +1,4 @@
-import { getDb, logScrape } from "../src/lib/db";
+import { getDb, logScrape, replaceClubContacts } from "../src/lib/db";
 import {
   SERIES_LIST,
   getClubInfo,
@@ -72,6 +72,12 @@ async function main() {
         locality: info.locality,
         series_names: seriesNames,
       });
+      const row = db
+        .prepare(`SELECT id FROM clubs WHERE rbfa_club_id = ?`)
+        .get(info.id) as { id: number } | undefined;
+      if (row) {
+        replaceClubContacts(row.id, info.contacts);
+      }
       ok++;
       if (ok % 20 === 0) console.log(`Imported ${ok}/${clubIds.size}`);
     } catch (e) {
@@ -89,7 +95,14 @@ async function main() {
   const total = (
     db.prepare(`SELECT COUNT(*) AS c FROM clubs`).get() as { c: number }
   ).c;
-  console.log(`Done. ok=${ok} fail=${fail} clubs_in_db=${total}`);
+  const contacts = (
+    db.prepare(`SELECT COUNT(*) AS c FROM club_contacts`).get() as {
+      c: number;
+    }
+  ).c;
+  console.log(
+    `Done. ok=${ok} fail=${fail} clubs_in_db=${total} contacts=${contacts}`,
+  );
 }
 
 main().catch((e) => {

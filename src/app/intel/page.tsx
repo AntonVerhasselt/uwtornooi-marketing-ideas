@@ -1,149 +1,245 @@
 import Link from "next/link";
-import { getDashboardStats, getUpcomingTournaments, listClubs } from "@/lib/queries";
+import { ContactList } from "@/components/intel/ContactList";
+import { EvidenceLink } from "@/components/intel/EvidenceLink";
+import { IntelNav } from "@/components/intel/IntelNav";
+import { StatusBadge } from "@/components/intel/StatusBadge";
+import { CRM_STATUSES } from "@/lib/crm";
+import type { CrmStatus } from "@/lib/db";
+import {
+  getContactsForClubs,
+  getDashboardStats,
+  getPipelineLeads,
+} from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Tournament intel",
-  description: "Amateur club tournament intelligence dashboard",
+  title: "Tournament lead CRM",
+  description: "Upcoming club tournaments with contacts and source evidence",
 };
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-[11px] border border-border bg-bg-elevated/80 px-5 py-4">
-      <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-faint">
+    <div className="rounded-[11px] border border-border bg-bg-elevated/80 px-4 py-3">
+      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-faint">
         {label}
       </p>
-      <p className="ut-display mt-2 text-3xl font-extrabold text-ink">{value}</p>
+      <p className="ut-display mt-1 text-2xl font-extrabold text-ink">{value}</p>
     </div>
   );
 }
 
-export default async function IntelDashboardPage() {
-  const [stats, upcoming, topClubs] = await Promise.all([
+function ChannelLinks({
+  website,
+  facebook,
+  instagram,
+}: {
+  website: string | null;
+  facebook: string | null;
+  instagram: string | null;
+}) {
+  const links = [
+    { href: website, label: "Website" },
+    { href: facebook, label: "Facebook" },
+    { href: instagram, label: "Instagram" },
+  ].filter((l) => l.href);
+  if (links.length === 0) {
+    return <span className="text-sm text-ink-faint">No channels found</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {links.map((l) => (
+        <a
+          key={l.label}
+          href={l.href!}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-[8px] border border-border bg-bg px-2.5 py-1 text-xs font-medium text-green-dark hover:bg-green-tint"
+        >
+          {l.label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+export default async function IntelPipelinePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const sp = await searchParams;
+  const statusFilter =
+    sp.status && CRM_STATUSES.some((s) => s.value === sp.status)
+      ? (sp.status as CrmStatus)
+      : "all";
+
+  const [stats, leads] = await Promise.all([
     getDashboardStats(),
-    getUpcomingTournaments(8),
-    listClubs(),
+    getPipelineLeads({
+      status: statusFilter === "all" ? "all" : statusFilter,
+      limit: 80,
+    }),
   ]);
+
+  const clubIds = [...new Set(leads.map((l) => l.club_id))];
+  const contactsByClub = await getContactsForClubs(clubIds);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10 sm:px-8 sm:py-14">
-      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <IntelNav current="/intel" />
+
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-2 text-sm font-medium uppercase tracking-[0.14em] text-green-dark">
-            Internal tool
+            Lightweight CRM
           </p>
           <h1 className="ut-display text-4xl font-extrabold text-ink sm:text-5xl">
-            Tournament intel
+            Upcoming tournament leads
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink-muted">
-            Clubs imported from Voetbal Vlaanderen, websites crawled for social
-            links, posts analyzed with GPT-5.6 Luna for self-organised
-            tournaments.
+            Clubs with detected self-organised tournaments — channels, RBFA
+            contacts, and the Facebook / Instagram / blog post where we found
+            each event.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/intel/clubs"
-            className="rounded-[11px] bg-green-dark px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
-          >
-            Clubs overview
-          </Link>
-          <Link
-            href="/intel/auth"
-            className="rounded-[11px] border border-border bg-bg-elevated px-4 py-2.5 text-sm font-medium text-ink hover:bg-green-tint"
-          >
-            Social login
-          </Link>
-          <Link
-            href="/intel/import"
-            className="rounded-[11px] border border-border bg-bg-elevated px-4 py-2.5 text-sm font-medium text-ink hover:bg-green-tint"
-          >
-            Import clubs
-          </Link>
-        </div>
+        <Link
+          href="/intel/clubs?upcoming=1"
+          className="rounded-[11px] border border-border bg-bg-elevated px-4 py-2.5 text-sm font-medium text-ink hover:bg-green-tint"
+        >
+          Clubs with upcoming →
+        </Link>
       </div>
 
-      <section className="mb-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Stat label="Total clubs" value={stats.totalClubs} />
-        <Stat label="Websites crawled" value={stats.websitesCrawled} />
-        <Stat label="Facebook pages found" value={stats.facebookPagesFound} />
-        <Stat label="Instagram found" value={stats.instagramFound} />
-        <Stat label="Tournament posts" value={stats.tournamentPosts} />
+      <section className="mb-8 grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Stat label="Upcoming tournaments" value={stats.upcomingTournaments} />
+        <Stat label="Clubs in pipeline" value={stats.upcomingClubs} />
+        <Stat label="Contacts loaded" value={stats.contactsLoaded} />
+        <Stat label="Clubs in DB" value={stats.totalClubs} />
       </section>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section>
-          <h2 className="ut-display mb-4 text-2xl font-extrabold text-ink">
-            Upcoming tournaments
-          </h2>
-          {upcoming.length === 0 ? (
-            <p className="text-sm text-ink-muted">
-              No upcoming tournament dates stored yet. Run the scrape + analyze
-              pipeline.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {upcoming.map((t) => (
-                <li
-                  key={t.id}
-                  className="rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3"
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <Link
-                      href={`/intel/clubs/${t.club_id}`}
-                      className="font-medium text-green-dark hover:underline"
-                    >
-                      {t.club_name}
-                    </Link>
-                    <span className="text-xs text-ink-faint">{t.event_date}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-ink">
-                    {t.tournament_name || "Tournament"}
-                    {t.age_group ? ` · ${t.age_group}` : ""}
-                  </p>
-                  {t.summary ? (
-                    <p className="mt-1 text-sm text-ink-muted">{t.summary}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+      <form className="mb-6 flex flex-wrap items-center gap-2" method="get">
+        <label className="text-sm text-ink-muted" htmlFor="status">
+          CRM status
+        </label>
+        <select
+          id="status"
+          name="status"
+          defaultValue={statusFilter}
+          className="rounded-[11px] border border-border bg-bg-elevated px-3 py-2 text-sm outline-none ring-green-dark/30 focus:ring-2"
+        >
+          <option value="all">All</option>
+          {CRM_STATUSES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="rounded-[11px] border border-border bg-bg-elevated px-3 py-2 text-sm font-medium hover:bg-green-tint"
+        >
+          Filter
+        </button>
+      </form>
 
-        <section>
-          <h2 className="ut-display mb-4 text-2xl font-extrabold text-ink">
-            Clubs with signals
-          </h2>
-          <ul className="space-y-2">
-            {topClubs
-              .filter((c) => c.tournament_count > 0)
-              .slice(0, 10)
-              .map((c) => (
-                <li key={c.id}>
-                  <Link
-                    href={`/intel/clubs/${c.id}`}
-                    className="flex items-center justify-between rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3 hover:bg-green-tint/60"
-                  >
-                    <span className="font-medium text-ink">{c.name}</span>
-                    <span className="text-sm text-ink-muted">
-                      {c.tournament_count} tournament
-                      {c.tournament_count === 1 ? "" : "s"}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            {topClubs.every((c) => c.tournament_count === 0) ? (
-              <p className="text-sm text-ink-muted">
-                No tournament hits yet. Pipeline stats:{" "}
-                {stats.analyzedCandidates}/{stats.candidatePosts} candidates
-                analyzed.
-              </p>
-            ) : null}
-          </ul>
-        </section>
-      </div>
+      {leads.length === 0 ? (
+        <p className="rounded-[11px] border border-border bg-bg-elevated/70 px-5 py-8 text-sm text-ink-muted">
+          No upcoming tournament leads match this filter. Run scrape + analyze,
+          or clear the status filter.
+        </p>
+      ) : (
+        <ul className="space-y-4">
+          {leads.map((lead) => {
+            const contacts = contactsByClub.get(lead.club_id) || [];
+            return (
+              <li
+                key={lead.id}
+                className="rounded-[14px] border border-border bg-bg-elevated/75 px-5 py-4 shadow-[var(--shadow-soft)]"
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/intel/clubs/${lead.club_id}`}
+                        className="ut-display text-xl font-extrabold text-ink hover:text-green-dark"
+                      >
+                        {lead.club_name}
+                      </Link>
+                      <StatusBadge status={lead.crm_status} />
+                      {lead.locality ? (
+                        <span className="text-sm text-ink-faint">
+                          {lead.locality}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-[15px] font-medium text-ink">
+                      {lead.tournament_name || "Tournament"}
+                      {lead.age_group ? (
+                        <span className="font-normal text-ink-muted">
+                          {" "}
+                          · {lead.age_group}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-1 text-sm text-ink-muted">
+                      <span className="font-medium text-ink">
+                        {lead.event_date}
+                      </span>
+                      {lead.registration_date
+                        ? ` · registration ${lead.registration_date}`
+                        : ""}
+                      {lead.confidence != null
+                        ? ` · ${Math.round(lead.confidence * 100)}% confidence`
+                        : ""}
+                    </p>
+                    {lead.summary ? (
+                      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
+                        {lead.summary}
+                      </p>
+                    ) : null}
+                    <div className="mt-3">
+                      <EvidenceLink
+                        source={lead.evidence_source}
+                        url={lead.evidence_url}
+                      />
+                    </div>
+                    {lead.post_snippet ? (
+                      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-ink-faint">
+                        “{lead.post_snippet}”
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="w-full shrink-0 space-y-3 lg:w-64">
+                    <div>
+                      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-faint">
+                        Channels
+                      </p>
+                      <ChannelLinks
+                        website={lead.website_url}
+                        facebook={lead.facebook_url}
+                        instagram={lead.instagram_url}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-faint">
+                        Contacts
+                      </p>
+                      <ContactList contacts={contacts} limit={2} />
+                    </div>
+                    <Link
+                      href={`/intel/clubs/${lead.club_id}`}
+                      className="inline-flex text-sm font-medium text-green-dark hover:underline"
+                    >
+                      Open club CRM →
+                    </Link>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </main>
   );
 }
