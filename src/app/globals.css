@@ -1,26 +1,118 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #fafafa;
+  --bg-elevated: #ffffff;
+  --ink: #1a1814;
+  --ink-muted: #5c5a54;
+  --ink-faint: #8a887f;
+  --green-dark: oklch(0.42 0.1 150);
+  --green: oklch(0.62 0.14 150);
+  --green-light: oklch(0.82 0.09 150);
+  --green-tint: oklch(0.96 0.03 154);
+  --border: color-mix(in oklch, var(--ink) 10%, transparent);
+  --radius: 11px;
+  --shadow-soft: 0 1px 2px color-mix(in oklch, var(--ink) 4%, transparent),
+    0 8px 24px color-mix(in oklch, var(--green-dark) 6%, transparent);
+  --background: var(--bg);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-green-dark: var(--green-dark);
+  --color-green: var(--green);
+  --color-green-light: var(--green-light);
+  --color-green-tint: var(--green-tint);
+  --color-border: var(--border);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --radius-ut: var(--radius);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* Soft pitch-like atmosphere without flat fill */
+.ut-atmosphere {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(
+      1200px 600px at 10% -10%,
+      color-mix(in oklch, var(--green-tint) 90%, white),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 100% 0%,
+      color-mix(in oklch, var(--green-light) 28%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--green-tint) 45%, white) 0%,
+      var(--bg) 42%
+    );
+}
+
+.ut-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+@keyframes ut-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ut-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ut-animate-fade-up {
+  animation: ut-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ut-animate-fade-in {
+  animation: ut-fade-in 0.6s ease both;
+}
+
+.ut-delay-1 {
+  animation-delay: 0.1s;
+}
+.ut-delay-2 {
+  animation-delay: 0.2s;
+}
+.ut-delay-3 {
+  animation-delay: 0.3s;
+}
+.ut-delay-4 {
+  animation-delay: 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ut-animate-fade-up,
+  .ut-animate-fade-in {
+    animation: none;
+  }
 }
