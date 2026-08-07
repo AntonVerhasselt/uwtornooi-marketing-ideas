@@ -25,9 +25,9 @@ export default function ColdOutreachPage() {
     <IdeaPageShell idea={idea}>
       <Section title="Intent">
         <p>
-          Turn tournament signals from club data into a repeatable social cold
-          outreach motion — contextual messages on Facebook and Instagram that
-          point organisers to free software on{" "}
+          Use historical tournament data from idea 1 to run a short, direct cold
+          outreach sequence — Instagram DM, Facebook DM, email, then a call —
+          pointing organisers to free software on{" "}
           <a
             href={sequenceOverview.ctaUrl}
             target="_blank"
@@ -45,9 +45,9 @@ export default function ColdOutreachPage() {
 
       <Section title="Depends on">
         <p>
-          Idea 1 (club data & tournament signals). Outreach quality hinges on
-          knowing who ran a tournament recently and where they post. Do not run
-          this sequence without a real post URL and club identity.
+          Idea 1 (club data & tournament signals): club identity, last
+          tournament month/year, Instagram, Facebook, email, and phone. Outreach
+          starts from that past signal — not from waiting for a new post.
         </p>
       </Section>
 
@@ -56,7 +56,7 @@ export default function ColdOutreachPage() {
           <strong className="font-medium text-ink">{sequenceOverview.name}</strong>
           {" — "}
           {sequenceOverview.windowDays}-day window on{" "}
-          {sequenceOverview.channels.join(" + ")}. CTA:{" "}
+          {sequenceOverview.channels.join(" → ")}. CTA:{" "}
           {sequenceOverview.ctaLabel}.
         </p>
         <ol className="list-decimal space-y-4 pl-5">
@@ -96,8 +96,8 @@ export default function ColdOutreachPage() {
 
       <Section title="Message angles">
         <p>
-          Pick the angle that matches the tournament signal — then fill the day
-          5 DM template.
+          Angles are driven by last year’s tournament record — pick one, then
+          fill the day 1–4 templates.
         </p>
         <ul className="space-y-4">
           {messageAngles.map((angle) => (
@@ -120,7 +120,7 @@ export default function ColdOutreachPage() {
         </ul>
       </Section>
 
-      <Section title="Comment vs DM vs follow-up">
+      <Section title="Channel rules">
         <div className="space-y-5">
           {channelRules.map((rule) => (
             <div key={rule.id}>
@@ -163,8 +163,8 @@ export default function ColdOutreachPage() {
 
       <Section title="Success looks like">
         <p>
-          Organisers reply because the message references their actual
-          tournament, then try UwTornooi for the next edition.
+          Organisers engage because you name their past tournament and ask
+          directly about this season — then try UwTornooi for the next edition.
         </p>
         <ul className="list-disc space-y-2 pl-5">
           {successMetrics.map((metric) => (
