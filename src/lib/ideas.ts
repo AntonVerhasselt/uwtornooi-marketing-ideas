@@ -32,9 +32,9 @@ export const ideas: Idea[] = [
     title: "Cold outreach via social",
     shortTitle: "Cold outreach",
     summary:
-      "Use tournament signals from club data for a cold outreach sequence on social (Facebook / Instagram). Sequence to be proposed next.",
-    status: "outline",
-    statusLabel: "Sequence to propose",
+      "14-day Facebook/Instagram sequence: react → value comment → personalised DM → one follow-up, tied to a real tournament post.",
+    status: "drafted",
+    statusLabel: "Sequence drafted",
     outcome: "Warm, contextual DMs and comments that convert organisers.",
   },
   {
