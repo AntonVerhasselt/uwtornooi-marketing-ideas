@@ -22,8 +22,11 @@ export default function Home() {
           >
             uwtornooi.be
           </a>
-          . Open a track to brief the next agent — nothing here is implemented
-          yet beyond this map.
+          . Club data has a live MVP in{" "}
+          <a href="/intel" className="font-medium text-green-dark underline-offset-2 hover:underline">
+            /intel
+          </a>
+          ; the other tracks are still briefs.
         </p>
       </section>
 
@@ -41,9 +44,8 @@ export default function Home() {
           How to use this site
         </p>
         <p className="text-[15px] leading-relaxed text-ink-muted">
-          Homepage is the map. Each idea has its own subpage for scope and
-          notes. Spin up a separate agent per subpage when you are ready to
-          go deep — start with club data only after you add more detail.
+          Homepage is the map. Club data opens the tournament intel dashboard.
+          Use the other idea pages as briefs for the next agent.
         </p>
       </section>
     </main>

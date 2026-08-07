@@ -21,8 +21,8 @@ export const ideas: Idea[] = [
     shortTitle: "Club data",
     summary:
       "Scrape Voetbal Vlaanderen clubs into SQLite, find Facebook/Instagram from club websites, then scan ~16 months of posts for tournaments the club organised.",
-    status: "details-later",
-    statusLabel: "Spec later — do not implement yet",
+    status: "ready-for-agent",
+    statusLabel: "MVP live in /intel",
     outcome: "A local lead list of clubs that recently ran tournaments.",
   },
   {
