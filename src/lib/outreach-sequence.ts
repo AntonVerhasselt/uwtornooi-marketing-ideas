@@ -49,6 +49,38 @@ export const sequenceOverview = {
     "We already know they organised a tournament last year from historical data. Reach out directly — don’t wait for a new post.",
   ctaUrl: "https://uwtornooi.be",
   ctaLabel: "Gratis tornooisoftware op uwtornooi.be",
+  loomUrl: "https://www.loom.com",
+};
+
+/** Exit the cadence as soon as anyone replies — switch to a real conversation. */
+export const onReplyRule = {
+  title: "When you get a reply",
+  summary:
+    "The sequence stops immediately. Cancel every remaining step (DM / email / call) and continue as a normal conversation on the channel they used.",
+  do: [
+    "Mark sequence_step = in-conversation and clear any scheduled day 2 / 4 / 5 touches.",
+    "Reply in-thread with a clear next step: answer their question, send a Loom demo, or book a short call.",
+    "Keep one owner on the thread so the club isn’t pinged from multiple people.",
+  ],
+  dont: [
+    "Don’t keep blasting the rest of the cadence “because it’s on the calendar”.",
+    "Don’t open a second channel the same day just to “reinforce” — stay where they replied.",
+    "Don’t send a Loom (or anything else) if they clearly said no — close the lead.",
+  ],
+};
+
+/** Async video walkthrough — free to record and share. */
+export const loomDemoTip = {
+  title: "Loom video demo",
+  summary:
+    "A short Loom walkthrough of UwTornooi is almost always a good next step once you’re in a conversation. It’s free, async-friendly for volunteers, and beats a wall of text.",
+  url: "https://www.loom.com",
+  urlLabel: "loom.com",
+  tips: [
+    "Keep it under ~3 minutes: create a sample tournament, show inschrijvingen + poules + live standen.",
+    "Send the link in the same thread they replied on (IG / FB / email).",
+    "Offer a live call only if they want one — Loom is the default demo.",
+  ],
 };
 
 export const sequenceSteps: SequenceStep[] = [
@@ -71,7 +103,7 @@ Plannen jullie dit seizoen opnieuw iets? Dan zet ik jullie in 10 minuten op weg.
     notes: [
       "Personalise with last year’s month + tournament type from club data — never send empty brackets.",
       "Lead with the fact, not the product.",
-      "If they reply, stop the rest of the sequence and continue in-thread.",
+      "If they reply: stop the sequence, stay in conversation, send a Loom demo when useful.",
     ],
   },
   {
@@ -113,9 +145,9 @@ Ik zag dat [club] vorig jaar rond [maand] een tornooi organiseerde.
 
 Wij bouwen UwTornooi (uwtornooi.be): gratis software voor Vlaamse clubs om inschrijvingen, poules, knock-out en live standen te regelen — zonder Excel.
 
-Als jullie dit seizoen opnieuw een tornooi plannen, help ik graag met een snelle setup of korte demo (10 min).
+Als jullie dit seizoen opnieuw een tornooi plannen, stuur ik graag een korte Loom-demo (gratis async video) of we bellen 10 minuten.
 
-Wanneer past het om even te bellen?
+Wat past jullie het best?
 
 Met sportieve groet,
 [jouw naam]
@@ -193,12 +225,12 @@ export const channelRules: ChannelRule[] = [
     do: [
       "Use last year’s tournament month/type from club data as the open — that’s the personalisation.",
       "Run the channels in order: IG DM → FB DM → email → call.",
-      "Stop the sequence the moment they reply on any channel.",
+      "Any reply = sequence over → switch to conversation (see on-reply rule).",
     ],
     dont: [
       "Don’t wait for a new tournament post before messaging.",
       "Don’t start with public comments — this sequence is inbox/phone only.",
-      "Don’t send all four touches if they already answered.",
+      "Don’t send remaining steps after they have already answered.",
     ],
   },
   {
@@ -213,6 +245,20 @@ export const channelRules: ChannelRule[] = [
       "Don’t DM Instagram and Facebook on the same day.",
       "Don’t call before the email has had a day in the inbox (unless they asked to be called).",
       "Don’t add extra follow-ups after day 5 in the same window.",
+    ],
+  },
+  {
+    id: "conversation-and-loom",
+    title: "Conversation + Loom demo",
+    do: [
+      "Once in conversation, default to sending a free Loom video demo (loom.com) of UwTornooi.",
+      "Record once, reuse the same Loom for many clubs; personalise only the message around it.",
+      "Use the call step for warm leads who want live help — not as the only demo format.",
+    ],
+    dont: [
+      "Don’t keep the cadence running in parallel with an active chat.",
+      "Don’t send a Loom before any reply (cold Loom spam).",
+      "Don’t make the Loom longer than a busy volunteer will watch.",
     ],
   },
   {
@@ -238,16 +284,23 @@ export const trackingFields: TrackingField[] = [
     purpose: "Cold open + timing of the sequence window",
   },
   { field: "instagram / facebook / email / phone", purpose: "Available channels from club data" },
-  { field: "sequence_step", purpose: "day1-ig | day2-fb | day4-email | day5-call | closed" },
+  {
+    field: "sequence_step",
+    purpose: "day1-ig | day2-fb | day4-email | day5-call | in-conversation | closed",
+  },
   { field: "last_touch_at", purpose: "Schedule next step; avoid double-messaging" },
-  { field: "reply_status", purpose: "none | engaged | interested | not-interested | wrong-contact" },
+  {
+    field: "reply_status",
+    purpose: "none | engaged | interested | not-interested | wrong-contact",
+  },
+  { field: "loom_sent", purpose: "Whether a Loom demo link was shared in the conversation" },
   { field: "owner", purpose: "Who sent/called (human accountable)" },
   { field: "notes", purpose: "Organiser name, next tournament plans, callback time" },
 ];
 
 export const successMetrics = [
   "Reply rate across IG + FB + email (any positive engagement)",
-  "Calls connected → demo/setup booked",
-  "Trials / signups on uwtornooi.be from the cohort",
-  "Sequence completion without channel spam (stop on first reply)",
+  "First reply → sequence stopped and conversation owned",
+  "Loom demos sent after reply → trials / signups on uwtornooi.be",
+  "Calls used for warm leads, not as the only demo path",
 ];

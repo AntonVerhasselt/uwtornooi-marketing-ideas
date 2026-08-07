@@ -3,7 +3,9 @@ import { IdeaPageShell, Section } from "@/components/IdeaPageShell";
 import { getIdea } from "@/lib/ideas";
 import {
   channelRules,
+  loomDemoTip,
   messageAngles,
+  onReplyRule,
   sequenceOverview,
   sequenceSteps,
   successMetrics,
@@ -59,6 +61,10 @@ export default function ColdOutreachPage() {
           {sequenceOverview.channels.join(" → ")}. CTA:{" "}
           {sequenceOverview.ctaLabel}.
         </p>
+        <p className="rounded-[11px] border border-border bg-bg px-4 py-3 text-ink">
+          <strong className="font-medium">{onReplyRule.title}:</strong>{" "}
+          {onReplyRule.summary}
+        </p>
         <ol className="list-decimal space-y-4 pl-5">
           {sequenceSteps.map((step) => (
             <li key={step.id} className="space-y-2">
@@ -92,6 +98,46 @@ export default function ColdOutreachPage() {
             </li>
           ))}
         </ol>
+      </Section>
+
+      <Section title={onReplyRule.title}>
+        <p>{onReplyRule.summary}</p>
+        <p className="mb-1 text-sm font-medium uppercase tracking-wide text-ink-faint">
+          Do
+        </p>
+        <ul className="mb-3 list-disc space-y-1 pl-5">
+          {onReplyRule.do.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+        <p className="mb-1 text-sm font-medium uppercase tracking-wide text-ink-faint">
+          Don&apos;t
+        </p>
+        <ul className="list-disc space-y-1 pl-5">
+          {onReplyRule.dont.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section title={loomDemoTip.title}>
+        <p>
+          {loomDemoTip.summary} Record and share for free via{" "}
+          <a
+            href={loomDemoTip.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-green-dark underline-offset-2 hover:underline"
+          >
+            {loomDemoTip.urlLabel}
+          </a>
+          .
+        </p>
+        <ul className="list-disc space-y-2 pl-5">
+          {loomDemoTip.tips.map((tip) => (
+            <li key={tip}>{tip}</li>
+          ))}
+        </ul>
       </Section>
 
       <Section title="Message angles">

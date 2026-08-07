@@ -97,6 +97,27 @@ export default function Home() {
           1) remains the lead-pipeline dependency for both outreach tracks.
         </p>
       </section>
+
+      <section className="ut-animate-fade-up ut-delay-4 mt-10 rounded-[11px] border border-green-light bg-bg-elevated px-6 py-7 shadow-[var(--shadow-soft)] sm:px-8">
+        <p className="mb-2 text-sm font-medium uppercase tracking-[0.12em] text-green-dark">
+          Full source
+        </p>
+        <h2 className="ut-display mb-3 text-2xl font-extrabold text-ink sm:text-3xl">
+          See how it all works on GitHub
+        </h2>
+        <p className="mb-5 max-w-2xl text-[15px] leading-relaxed text-ink-muted">
+          This board is the map — the repo has the full work behind every track:
+          briefs, drafts, and implementation detail.
+        </p>
+        <a
+          href="https://github.com/AntonVerhasselt/uwtornooi-marketing-ideas"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-[11px] bg-green-dark px-5 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+        >
+          Open GitHub repo →
+        </a>
+      </section>
     </main>
   );
 }
