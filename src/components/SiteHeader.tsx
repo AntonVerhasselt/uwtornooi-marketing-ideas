@@ -33,9 +33,15 @@ export function SiteHeader() {
           </Link>
           <Link
             href="/intel/auth"
-            className="rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink"
+            className="hidden rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink sm:inline"
           >
             Social login
+          </Link>
+          <Link
+            href="/ideeen/seo-concurrent"
+            className="rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink"
+          >
+            SEO / SEA
           </Link>
           <a
             href="https://uwtornooi.be"

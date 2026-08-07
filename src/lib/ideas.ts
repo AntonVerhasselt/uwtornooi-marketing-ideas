@@ -1,4 +1,4 @@
-export type IdeaStatus = "ready-for-agent" | "details-later" | "outline";
+export type IdeaStatus = "ready-for-agent" | "details-later" | "outline" | "drafted";
 
 export type Idea = {
   number: number;
@@ -32,22 +32,34 @@ export const ideas: Idea[] = [
     title: "Cold outreach via social",
     shortTitle: "Cold outreach",
     summary:
-      "Use tournament signals from club data for a cold outreach sequence on social (Facebook / Instagram). Sequence to be proposed next.",
-    status: "outline",
-    statusLabel: "Sequence to propose",
-    outcome: "Warm, contextual DMs and comments that convert organisers.",
+      "Direct 5-day cold sequence from last year’s tournament data: IG DM → FB DM → email → call. No waiting for a new post.",
+    status: "drafted",
+    statusLabel: "Sequence drafted",
+    outcome: "Direct multi-channel outreach that books demos with organisers.",
   },
   {
     number: 3,
     slug: "seo-concurrent",
     href: "/ideeen/seo-concurrent",
-    title: "SEO content vs competitor",
-    shortTitle: "SEO content",
+    title: "SEO + SEA vs Tournify",
+    shortTitle: "SEO / SEA",
     summary:
-      "Publish SEO content that captures people searching for the main competitor and routes them to UwTornooi.be.",
-    status: "ready-for-agent",
-    statusLabel: "Ready for agent",
-    outcome: "Organic traffic from competitor-intent searches.",
+      "Competitor content cluster + SEA on Tournify intent: strategy hub, 9 Dutch page drafts, migration offer, and football-vertical keywords.",
+    status: "drafted",
+    statusLabel: "Strategy + drafts ready",
+    outcome: "Organic + paid traffic from competitor-intent searches.",
+  },
+  {
+    number: 4,
+    slug: "social-alerts",
+    href: "/ideeen/social-alerts",
+    title: "Daily social tournament alerts",
+    shortTitle: "Social alerts",
+    summary:
+      "Daily cron over club Facebook/Instagram feeds to catch new tournament announcements, notify the team, then comment + DM while the post is hot.",
+    status: "outline",
+    statusLabel: "Outline — do not implement yet",
+    outcome: "Same-day outreach on live tournament announcement posts.",
   },
 ];
 
