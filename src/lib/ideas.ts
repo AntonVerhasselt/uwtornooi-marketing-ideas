@@ -49,6 +49,18 @@ export const ideas: Idea[] = [
     statusLabel: "Strategy + drafts ready",
     outcome: "Organic + paid traffic from competitor-intent searches.",
   },
+  {
+    number: 4,
+    slug: "social-alerts",
+    href: "/ideeen/social-alerts",
+    title: "Daily social tournament alerts",
+    shortTitle: "Social alerts",
+    summary:
+      "Daily cron over club Facebook/Instagram feeds to catch new tournament announcements, notify the team, then comment + DM while the post is hot.",
+    status: "outline",
+    statusLabel: "Outline — do not implement yet",
+    outcome: "Same-day outreach on live tournament announcement posts.",
+  },
 ];
 
 export function getIdea(slug: string): Idea | undefined {

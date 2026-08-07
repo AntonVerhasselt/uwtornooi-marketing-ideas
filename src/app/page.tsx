@@ -34,7 +34,7 @@ export default function Home() {
 
       <section
         aria-label="Growth ideas"
-        className="ut-animate-fade-up ut-delay-3 grid gap-5 md:grid-cols-3"
+        className="ut-animate-fade-up ut-delay-3 grid gap-5 sm:grid-cols-2"
       >
         {ideas.map((idea) => (
           <IdeaCard key={idea.slug} idea={idea} />
@@ -92,8 +92,9 @@ export default function Home() {
         </p>
         <p className="text-[15px] leading-relaxed text-ink-muted">
           Homepage is the map. Idea 3 holds the Tournify strategy plus draft
-          pages ready to ship to uwtornooi.be. Idea 2 has the social outreach
-          sequence; club data remains the brief for the lead pipeline.
+          pages ready to ship to uwtornooi.be. Idea 2 has the planned cold
+          sequence; idea 4 is the reactive social-alert brief. Club data (idea
+          1) remains the lead-pipeline dependency for both outreach tracks.
         </p>
       </section>
     </main>
