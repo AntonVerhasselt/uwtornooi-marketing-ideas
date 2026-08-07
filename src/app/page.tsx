@@ -1,5 +1,10 @@
+import Link from "next/link";
 import { IdeaCard } from "@/components/IdeaCard";
 import { ideas } from "@/lib/ideas";
+import { seoPages } from "@/lib/seo-pages";
+
+const seoIdea = ideas.find((idea) => idea.slug === "seo-concurrent");
+const highlightPages = seoPages.filter((page) => page.priority === "P0");
 
 export default function Home() {
   return (
@@ -22,8 +27,8 @@ export default function Home() {
           >
             uwtornooi.be
           </a>
-          . Open a track to brief the next agent — nothing here is implemented
-          yet beyond this map.
+          . Start with the Tournify SEO/SEA cluster — strategy and Dutch drafts
+          are ready to explore.
         </p>
       </section>
 
@@ -36,14 +41,59 @@ export default function Home() {
         ))}
       </section>
 
+      {seoIdea ? (
+        <section className="ut-animate-fade-up ut-delay-4 mt-14">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="mb-1 text-sm font-medium uppercase tracking-[0.12em] text-green-dark">
+                Featured track
+              </p>
+              <h2 className="ut-display text-3xl font-extrabold text-ink">
+                SEO + SEA vs Tournify
+              </h2>
+              <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-muted">
+                Competitor awareness → trust → free migration → signup. Open the
+                strategy hub, then browse the P0 drafts below.
+              </p>
+            </div>
+            <Link
+              href={seoIdea.href}
+              className="rounded-[11px] bg-green-dark px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+            >
+              Open full strategy →
+            </Link>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {highlightPages.map((page) => (
+              <Link
+                key={page.slug}
+                href={page.href}
+                className="rounded-[11px] border border-border bg-bg-elevated p-4 shadow-[var(--shadow-soft)] transition-[transform,border-color] hover:-translate-y-0.5 hover:border-green-light"
+              >
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                  {page.targetPath}
+                </p>
+                <p className="ut-display text-lg font-extrabold text-ink">
+                  {page.shortTitle}
+                </p>
+                <p className="mt-1 text-sm text-ink-muted">
+                  {page.primaryKeyword}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="ut-animate-fade-up ut-delay-4 mt-14 rounded-[11px] border border-border bg-green-tint/70 px-6 py-5 sm:px-7">
         <p className="ut-display mb-1 text-lg font-extrabold text-ink">
           How to use this site
         </p>
         <p className="text-[15px] leading-relaxed text-ink-muted">
-          Homepage is the map. Each idea has its own subpage for scope and
-          notes. Spin up a separate agent per subpage when you are ready to
-          go deep — start with club data only after you add more detail.
+          Homepage is the map. Idea 3 holds the Tournify strategy plus draft
+          pages ready to ship to uwtornooi.be. Club data and cold outreach stay
+          as briefs for later agents.
         </p>
       </section>
     </main>

@@ -1,4 +1,4 @@
-export type IdeaStatus = "ready-for-agent" | "details-later" | "outline";
+export type IdeaStatus = "ready-for-agent" | "details-later" | "outline" | "drafted";
 
 export type Idea = {
   number: number;
@@ -41,13 +41,13 @@ export const ideas: Idea[] = [
     number: 3,
     slug: "seo-concurrent",
     href: "/ideeen/seo-concurrent",
-    title: "SEO content vs competitor",
-    shortTitle: "SEO content",
+    title: "SEO + SEA vs Tournify",
+    shortTitle: "SEO / SEA",
     summary:
-      "Publish SEO content that captures people searching for the main competitor and routes them to UwTornooi.be.",
-    status: "ready-for-agent",
-    statusLabel: "Ready for agent",
-    outcome: "Organic traffic from competitor-intent searches.",
+      "Competitor content cluster + SEA on Tournify intent: strategy hub, 9 Dutch page drafts, migration offer, and football-vertical keywords.",
+    status: "drafted",
+    statusLabel: "Strategy + drafts ready",
+    outcome: "Organic + paid traffic from competitor-intent searches.",
   },
 ];
 
