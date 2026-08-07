@@ -92,8 +92,8 @@ export default function Home() {
         </p>
         <p className="text-[15px] leading-relaxed text-ink-muted">
           Homepage is the map. Idea 3 holds the Tournify strategy plus draft
-          pages ready to ship to uwtornooi.be. Club data and cold outreach stay
-          as briefs for later agents.
+          pages ready to ship to uwtornooi.be. Idea 2 has the social outreach
+          sequence; club data remains the brief for the lead pipeline.
         </p>
       </section>
     </main>
