@@ -31,6 +31,12 @@ export function SiteHeader() {
           >
             Tournament intel
           </Link>
+          <Link
+            href="/intel/auth"
+            className="rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink"
+          >
+            Social login
+          </Link>
           <a
             href="https://uwtornooi.be"
             target="_blank"

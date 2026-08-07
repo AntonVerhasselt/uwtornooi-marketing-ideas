@@ -1,9 +1,12 @@
-import { chromium } from "playwright";
 import { scrapeBlogPages } from "../src/lib/blog";
 import { getDb, logScrape, type ClubRow } from "../src/lib/db";
 import { scrapeFacebookPage } from "../src/lib/facebook";
 import { scrapeInstagramProfile } from "../src/lib/instagram";
 import type { ScrapedPost } from "../src/lib/scrape-types";
+import {
+  getAuthStatus,
+  launchSocialContext,
+} from "../src/lib/social-auth";
 import { harvestWebsiteNews } from "../src/lib/website-news";
 
 function insertCandidates(clubId: number, posts: ScrapedPost[]): number {
@@ -38,6 +41,25 @@ async function main() {
   const skipIg = process.env.SKIP_IG === "1";
   const skipBlog = process.env.SKIP_BLOG === "1";
 
+  const fbAuth = getAuthStatus("facebook");
+  const igAuth = getAuthStatus("instagram");
+  console.log(
+    `Auth: facebook=${fbAuth.loggedIn ? "logged in" : "anonymous"}` +
+      `${fbAuth.accountHint ? ` (${fbAuth.accountHint})` : ""}` +
+      `, instagram=${igAuth.loggedIn ? "logged in" : "anonymous"}` +
+      `${igAuth.accountHint ? ` (${igAuth.accountHint})` : ""}`,
+  );
+  if (!fbAuth.loggedIn) {
+    console.log(
+      "Tip: run `npm run intel:login:facebook` then re-scrape for deeper FB history.",
+    );
+  }
+  if (!igAuth.loggedIn) {
+    console.log(
+      "Tip: run `npm run intel:login:instagram` then re-scrape for deeper IG history.",
+    );
+  }
+
   const db = getDb();
   let clubs = db
     .prepare(
@@ -53,28 +75,35 @@ async function main() {
   if (limit > 0) clubs = clubs.slice(0, limit);
   console.log(`Scraping social/blog for ${clubs.length} clubs (months=${months})`);
 
-  const browser = await chromium.launch({ headless: true });
+  const fbCtx = !skipFb
+    ? await launchSocialContext("facebook", { headless: true })
+    : null;
+  const igCtx = !skipIg
+    ? await launchSocialContext("instagram", { headless: true })
+    : null;
+
   try {
     let i = 0;
     for (const club of clubs) {
       i++;
       console.log(`\n[${i}/${clubs.length}] ${club.name}`);
 
-      if (!skipFb && club.facebook_url) {
+      if (!skipFb && club.facebook_url && fbCtx) {
         try {
-          const posts = await scrapeFacebookPage(browser, club.facebook_url, {
+          const posts = await scrapeFacebookPage(fbCtx.context, club.facebook_url, {
             months,
-            maxScrolls: 5,
-            maxPosts: 30,
+            authenticated: fbCtx.usingAuth,
           });
           const inserted = insertCandidates(club.id, posts);
           logScrape(
             club.id,
             "facebook",
             "ok",
-            `scraped=${posts.length} inserted=${inserted}`,
+            `auth=${fbCtx.usingAuth} scraped=${posts.length} inserted=${inserted}`,
           );
-          console.log(`  facebook: scraped=${posts.length} inserted=${inserted}`);
+          console.log(
+            `  facebook${fbCtx.usingAuth ? " (auth)" : ""}: scraped=${posts.length} inserted=${inserted}`,
+          );
         } catch (e) {
           logScrape(
             club.id,
@@ -86,20 +115,23 @@ async function main() {
         }
       }
 
-      if (!skipIg && club.instagram_url) {
+      if (!skipIg && club.instagram_url && igCtx) {
         try {
-          const posts = await scrapeInstagramProfile(browser, club.instagram_url, {
-            months,
-            maxPosts: 25,
-          });
+          const posts = await scrapeInstagramProfile(
+            igCtx.context,
+            club.instagram_url,
+            { months, authenticated: igCtx.usingAuth },
+          );
           const inserted = insertCandidates(club.id, posts);
           logScrape(
             club.id,
             "instagram",
             "ok",
-            `scraped=${posts.length} inserted=${inserted}`,
+            `auth=${igCtx.usingAuth} scraped=${posts.length} inserted=${inserted}`,
           );
-          console.log(`  instagram: scraped=${posts.length} inserted=${inserted}`);
+          console.log(
+            `  instagram${igCtx.usingAuth ? " (auth)" : ""}: scraped=${posts.length} inserted=${inserted}`,
+          );
         } catch (e) {
           logScrape(
             club.id,
@@ -148,7 +180,8 @@ async function main() {
       }
     }
   } finally {
-    await browser.close();
+    await fbCtx?.context.close().catch(() => undefined);
+    await igCtx?.context.close().catch(() => undefined);
   }
 
   const count = (

@@ -11,6 +11,12 @@ export type TournamentAnalysis = {
   summary: string;
 };
 
+/** One post may mention several club-organised tournaments. */
+export type PostAnalysis = {
+  isTournament: boolean;
+  tournaments: TournamentAnalysis[];
+};
+
 export type AnalyzablePost = {
   id: number;
   postText: string;
@@ -20,16 +26,18 @@ export type AnalyzablePost = {
 
 const SYSTEM_PROMPT = `You analyze football club Facebook/Instagram/blog posts.
 
-Determine if this post is related to a football tournament organized by the club.
+Determine if this post is related to one or more football tournaments organized (hosted) by the club.
+
+A club can organise several tournaments (different age groups, cups, years). Extract EACH distinct club-organised tournament mentioned.
 
 Tournament examples:
 - youth tournaments
 - amateur football tournaments
-- cups
+- cups organised by the club
 - annual tournaments
 - tournament registrations
 - tournament schedules
-- tournament results
+- tournament results for events the club hosts
 
 Not tournaments:
 - normal league matches
@@ -39,7 +47,7 @@ Not tournaments:
 - family days / fun days unless they are football tournaments
 - federation / association cups the club only plays in (Croky Cup, Beker van België, Beker van Vlaanderen, Beker van Antwerpen, provincial cups) unless the club itself organises the event
 
-Only mark isTournament=true when the club organises (hosts) the tournament.
+Only mark isTournament=true when the club organises (hosts) at least one tournament.
 
 Return JSON only.`;
 
@@ -49,7 +57,7 @@ function getClient(): OpenAI {
   return new OpenAI({ apiKey: key });
 }
 
-function emptyAnalysis(): TournamentAnalysis {
+function emptyTournament(): TournamentAnalysis {
   return {
     isTournament: false,
     confidence: 0,
@@ -62,12 +70,16 @@ function emptyAnalysis(): TournamentAnalysis {
   };
 }
 
-function normalizeAnalysis(raw: unknown): TournamentAnalysis {
-  if (!raw || typeof raw !== "object") return emptyAnalysis();
+function emptyPostAnalysis(): PostAnalysis {
+  return { isTournament: false, tournaments: [] };
+}
+
+function normalizeTournament(raw: unknown): TournamentAnalysis {
+  if (!raw || typeof raw !== "object") return emptyTournament();
   const o = raw as Record<string, unknown>;
   const conf = Number(o.confidence);
   return {
-    isTournament: Boolean(o.isTournament),
+    isTournament: Boolean(o.isTournament ?? true),
     confidence: Number.isFinite(conf) ? Math.min(1, Math.max(0, conf)) : 0,
     tournamentName: String(o.tournamentName || ""),
     category: String(o.category || ""),
@@ -75,6 +87,35 @@ function normalizeAnalysis(raw: unknown): TournamentAnalysis {
     eventDate: String(o.eventDate || ""),
     registrationDate: String(o.registrationDate || ""),
     summary: String(o.summary || ""),
+  };
+}
+
+function normalizePostAnalysis(raw: unknown): PostAnalysis {
+  if (!raw || typeof raw !== "object") return emptyPostAnalysis();
+  const o = raw as Record<string, unknown>;
+
+  const list: TournamentAnalysis[] = [];
+  if (Array.isArray(o.tournaments)) {
+    for (const item of o.tournaments) {
+      const t = normalizeTournament(item);
+      if (t.tournamentName || t.summary) {
+        list.push({ ...t, isTournament: true });
+      }
+    }
+  }
+
+  // Back-compat: flat single-tournament object
+  if (!list.length && (o.tournamentName || o.isTournament)) {
+    const t = normalizeTournament(o);
+    if (t.isTournament && (t.tournamentName || t.summary)) {
+      list.push(t);
+    }
+  }
+
+  const isTournament = Boolean(o.isTournament) || list.length > 0;
+  return {
+    isTournament,
+    tournaments: isTournament ? list : [],
   };
 }
 
@@ -111,8 +152,8 @@ function outputText(response: OpenAI.Responses.Response): string {
 
 export async function analyzePostsBatch(
   posts: AnalyzablePost[],
-): Promise<Map<number, TournamentAnalysis>> {
-  const result = new Map<number, TournamentAnalysis>();
+): Promise<Map<number, PostAnalysis>> {
+  const result = new Map<number, PostAnalysis>();
   if (!posts.length) return result;
 
   const client = getClient();
@@ -129,14 +170,21 @@ Schema per item:
 {
   "id": number,
   "isTournament": true/false,
-  "confidence": 0-1,
-  "tournamentName": "",
-  "category": "",
-  "ageGroup": "",
-  "eventDate": "",
-  "registrationDate": "",
-  "summary": ""
+  "tournaments": [
+    {
+      "tournamentName": "",
+      "category": "",
+      "ageGroup": "",
+      "eventDate": "",
+      "registrationDate": "",
+      "confidence": 0-1,
+      "summary": ""
+    }
+  ]
 }
+
+If the post mentions multiple club-organised tournaments (e.g. U8 cup AND U13 cup, or spring + summer events), include one object per tournament in "tournaments".
+If none, isTournament=false and tournaments=[].
 
 Posts:
 ${JSON.stringify(payload, null, 2)}`;
@@ -158,24 +206,25 @@ ${JSON.stringify(payload, null, 2)}`;
     if (!item || typeof item !== "object") continue;
     const id = Number((item as { id?: unknown }).id);
     if (!Number.isFinite(id)) continue;
-    result.set(id, normalizeAnalysis(item));
+    result.set(id, normalizePostAnalysis(item));
   }
 
-  // Fill missing with non-tournament to avoid reprocessing forever
   for (const p of posts) {
-    if (!result.has(p.id)) result.set(p.id, emptyAnalysis());
+    if (!result.has(p.id)) result.set(p.id, emptyPostAnalysis());
   }
 
   return result;
 }
 
-/** Batch helper with small concurrency for efficiency. */
 export async function analyzeAllPosts(
   posts: AnalyzablePost[],
-  options?: { batchSize?: number; onBatch?: (done: number, total: number) => void },
-): Promise<Map<number, TournamentAnalysis>> {
+  options?: {
+    batchSize?: number;
+    onBatch?: (done: number, total: number) => void;
+  },
+): Promise<Map<number, PostAnalysis>> {
   const batchSize = options?.batchSize ?? 8;
-  const all = new Map<number, TournamentAnalysis>();
+  const all = new Map<number, PostAnalysis>();
 
   for (let i = 0; i < posts.length; i += batchSize) {
     const batch = posts.slice(i, i + batchSize);

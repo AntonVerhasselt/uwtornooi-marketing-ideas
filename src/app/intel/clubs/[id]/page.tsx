@@ -127,9 +127,18 @@ export default async function ClubDetailPage({
       </section>
 
       <section className="mb-10">
-        <h2 className="ut-display mb-4 text-2xl font-extrabold text-ink">
+        <h2 className="ut-display mb-2 text-2xl font-extrabold text-ink">
           Tournament history
         </h2>
+        <p className="mb-4 text-sm text-ink-muted">
+          {tournaments.length} tournament signal
+          {tournaments.length === 1 ? "" : "s"}
+          {tournaments.length
+            ? ` · ${new Set(tournaments.map((t) => (t.tournament_name || "").toLowerCase()).filter(Boolean)).size} distinct names`
+            : ""}
+          . Clubs that host several events (e.g. U8 + U13 cups) get one row per
+          tournament.
+        </p>
         {tournaments.length === 0 ? (
           <p className="text-sm text-ink-muted">No tournament posts stored yet.</p>
         ) : (

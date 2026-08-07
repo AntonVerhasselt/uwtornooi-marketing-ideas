@@ -50,6 +50,12 @@ export default async function IntelDashboardPage() {
             Clubs overview
           </Link>
           <Link
+            href="/intel/auth"
+            className="rounded-[11px] border border-border bg-bg-elevated px-4 py-2.5 text-sm font-medium text-ink hover:bg-green-tint"
+          >
+            Social login
+          </Link>
+          <Link
             href="/intel/import"
             className="rounded-[11px] border border-border bg-bg-elevated px-4 py-2.5 text-sm font-medium text-ink hover:bg-green-tint"
           >

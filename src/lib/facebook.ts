@@ -1,7 +1,8 @@
-import type { Browser, Page } from "playwright";
+import type { BrowserContext, Page } from "playwright";
 import {
   decodeJsString,
   isWithinMonths,
+  monthsAgoIsoDate,
   type ScrapedPost,
 } from "./scrape-types";
 
@@ -14,11 +15,16 @@ function pagePath(facebookUrl: string): string {
   return parts[0] || "";
 }
 
+function hashText(text: string): string {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  return h.toString(16);
+}
+
 function parsePostsFromHtml(html: string, pageSlug: string): ScrapedPost[] {
   const posts: ScrapedPost[] = [];
   const seen = new Set<string>();
 
-  // Pair nearby creation_time + message text blocks from embedded GraphQL payloads
   const messageRe =
     /"message"\s*:\s*\{\s*"text"\s*:\s*"((?:\\.|[^"\\])*)"/g;
   const messages: Array<{ text: string; index: number }> = [];
@@ -42,7 +48,6 @@ function parsePostsFromHtml(html: string, pageSlug: string): ScrapedPost[] {
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]!;
-    // nearest creation_time before this message
     let bestTime: number | null = null;
     let bestDist = Infinity;
     for (const t of times) {
@@ -76,12 +81,6 @@ function parsePostsFromHtml(html: string, pageSlug: string): ScrapedPost[] {
   return posts;
 }
 
-function hashText(text: string): string {
-  let h = 0;
-  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
-  return h.toString(16);
-}
-
 async function dismissCookies(page: Page): Promise<void> {
   const labels = [
     /Decline optional cookies/i,
@@ -101,25 +100,46 @@ async function dismissCookies(page: Page): Promise<void> {
   }
 }
 
+function mergePosts(into: ScrapedPost[], more: ScrapedPost[]): void {
+  const seen = new Set(into.map((p) => p.sourcePostId));
+  for (const p of more) {
+    if (seen.has(p.sourcePostId)) continue;
+    seen.add(p.sourcePostId);
+    into.push(p);
+  }
+}
+
+function oldestDated(posts: ScrapedPost[]): string | null {
+  const dates = posts
+    .map((p) => p.postDate)
+    .filter((d): d is string => Boolean(d))
+    .sort();
+  return dates[0] || null;
+}
+
 export async function scrapeFacebookPage(
-  browser: Browser,
+  context: BrowserContext,
   facebookUrl: string,
-  options?: { months?: number; maxScrolls?: number; maxPosts?: number },
+  options?: {
+    months?: number;
+    maxScrolls?: number;
+    maxPosts?: number;
+    authenticated?: boolean;
+  },
 ): Promise<ScrapedPost[]> {
   const months = options?.months ?? 16;
-  const maxScrolls = options?.maxScrolls ?? 12;
-  const maxPosts = options?.maxPosts ?? 40;
+  const authenticated = Boolean(options?.authenticated);
+  const maxScrolls =
+    options?.maxScrolls ?? (authenticated ? 80 : 5);
+  const maxPosts = options?.maxPosts ?? (authenticated ? 200 : 40);
+  const cutoff = monthsAgoIsoDate(months);
+
   const slug = pagePath(facebookUrl);
   if (!slug) return [];
 
-  const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
-    locale: "nl-BE",
-    viewport: { width: 1280, height: 900 },
-  });
   const page = await context.newPage();
   const networkHtmlChunks: string[] = [];
+  const collected: ScrapedPost[] = [];
 
   page.on("response", async (res) => {
     try {
@@ -128,6 +148,7 @@ export async function scrapeFacebookPage(
       const text = await res.text();
       if (/"creation_time"/.test(text) && /"message"/.test(text)) {
         networkHtmlChunks.push(text);
+        mergePosts(collected, parsePostsFromHtml(text, slug));
       }
     } catch {
       /* ignore */
@@ -143,28 +164,56 @@ export async function scrapeFacebookPage(
     await page.waitForTimeout(2000);
     await dismissCookies(page);
 
-    // Prefer posts tab when available
     const postsUrl = facebookUrl.includes("profile.php")
       ? `${target}&sk=posts`
       : `https://www.facebook.com/${slug}/posts`;
-    await page.goto(postsUrl, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(
-      () => undefined,
-    );
+    await page
+      .goto(postsUrl, { waitUntil: "domcontentloaded", timeout: 60000 })
+      .catch(() => undefined);
     await page.waitForTimeout(1500);
     await dismissCookies(page);
 
-    // Public Facebook pages expose only a thin recent feed without login.
-    for (let i = 0; i < Math.min(maxScrolls, 5); i++) {
-      await page.mouse.wheel(0, 2400);
-      await page.waitForTimeout(900);
+    let stagnant = 0;
+    let lastCount = 0;
+
+    for (let i = 0; i < maxScrolls; i++) {
+      await page.mouse.wheel(0, 2800);
+      await page.waitForTimeout(authenticated ? 1200 : 900);
+
+      // Periodically parse full page HTML
+      if (i % 3 === 0 || i === maxScrolls - 1) {
+        const html = await page.content();
+        mergePosts(collected, parsePostsFromHtml(html, slug));
+      }
+
+      const inWindow = collected.filter((p) => isWithinMonths(p.postDate, months));
+      if (inWindow.length >= maxPosts) break;
+
+      const oldest = oldestDated(collected);
+      if (oldest && oldest < cutoff && inWindow.length > 5) {
+        // Reached past the window
+        break;
+      }
+
+      if (collected.length === lastCount) {
+        stagnant++;
+        if (stagnant >= (authenticated ? 8 : 3)) break;
+      } else {
+        stagnant = 0;
+        lastCount = collected.length;
+      }
     }
 
-    const html = [await page.content(), ...networkHtmlChunks].join("\n");
-    const parsed = parsePostsFromHtml(html, slug)
-      .filter((p) => isWithinMonths(p.postDate, months))
-      .slice(0, maxPosts);
+    mergePosts(
+      collected,
+      parsePostsFromHtml(
+        [await page.content(), ...networkHtmlChunks].join("\n"),
+        slug,
+      ),
+    );
 
-    // Fallback: article DOM text if JSON empty
+    let parsed = collected.filter((p) => isWithinMonths(p.postDate, months));
+
     if (parsed.length === 0) {
       const domPosts = await page.evaluate(() => {
         const out: Array<{ text: string; href: string | null }> = [];
@@ -194,6 +243,6 @@ export async function scrapeFacebookPage(
 
     return parsed.slice(0, maxPosts);
   } finally {
-    await context.close();
+    await page.close().catch(() => undefined);
   }
 }

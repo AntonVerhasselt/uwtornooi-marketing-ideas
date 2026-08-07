@@ -18,3 +18,16 @@ npm run intel:pipeline
 ```
 
 Requires `OPENAI_API_KEY` for the analyze step.
+
+## Social login (Facebook / Instagram)
+
+For deep ~16-month FB/IG history, log in once:
+
+```bash
+npm run intel:login:facebook
+npm run intel:login:instagram
+```
+
+Or open **`/intel/auth`** for status + instructions.
+
+Sessions are stored in `data/auth/` (gitignored) and reused by `intel:scrape`.

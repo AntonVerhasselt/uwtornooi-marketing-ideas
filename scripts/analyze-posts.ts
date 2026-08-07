@@ -55,9 +55,9 @@ async function main() {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  // Process in chunks so we persist progress even if interrupted
   const chunkSize = Math.max(batchSize * 3, 24);
-  let stored = 0;
+  let storedPosts = 0;
+  let storedTournaments = 0;
 
   for (let offset = 0; offset < rows.length; offset += chunkSize) {
     const chunk = rows.slice(offset, offset + chunkSize);
@@ -84,28 +84,35 @@ async function main() {
       for (const row of chunk) {
         const analysis = analyses.get(row.id);
         markAnalyzed.run(row.id);
-        if (!analysis || !analysis.isTournament) continue;
+        if (!analysis || !analysis.isTournament || !analysis.tournaments.length) {
+          continue;
+        }
 
+        const first = analysis.tournaments[0]!;
         const postInfo = insertPost.run(
           row.club_id,
           row.id,
           row.source_url,
-          row.post_date || normalizeDate(analysis.eventDate),
+          row.post_date || normalizeDate(first.eventDate),
           row.post_text,
         );
         const postId = Number(postInfo.lastInsertRowid);
-        insertTournament.run(
-          row.club_id,
-          postId,
-          analysis.tournamentName || null,
-          analysis.category || null,
-          analysis.ageGroup || null,
-          normalizeDate(analysis.eventDate),
-          normalizeDate(analysis.registrationDate),
-          analysis.summary || null,
-          analysis.confidence,
-        );
-        stored++;
+        storedPosts++;
+
+        for (const t of analysis.tournaments) {
+          insertTournament.run(
+            row.club_id,
+            postId,
+            t.tournamentName || null,
+            t.category || null,
+            t.ageGroup || null,
+            normalizeDate(t.eventDate),
+            normalizeDate(t.registrationDate),
+            t.summary || null,
+            t.confidence,
+          );
+          storedTournaments++;
+        }
       }
     });
     tx();
@@ -114,7 +121,7 @@ async function main() {
       null,
       "analyze",
       "ok",
-      `chunk_offset=${offset} analyzed=${chunk.length} tournaments_so_far=${stored}`,
+      `chunk_offset=${offset} analyzed=${chunk.length} posts=${storedPosts} tournaments=${storedTournaments}`,
     );
   }
 
@@ -127,7 +134,9 @@ async function main() {
     )
     .get() as { analyzed: number; posts: number; tournaments: number };
 
-  console.log(`\nDone. Newly stored tournament posts this run: ${stored}`);
+  console.log(
+    `\nDone. New tournament posts=${storedPosts}, tournament rows=${storedTournaments}`,
+  );
   console.log("DB totals", stats);
 }
 
