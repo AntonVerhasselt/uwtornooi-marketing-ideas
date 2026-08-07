@@ -6,21 +6,35 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "intel:import": "tsx scripts/import-rbfa.ts",
+    "intel:crawl": "tsx scripts/crawl-websites.ts",
+    "intel:scrape": "tsx scripts/scrape-social.ts",
+    "intel:analyze": "tsx scripts/analyze-posts.ts",
+    "intel:pipeline": "tsx scripts/run-pipeline.ts",
+    "intel:login:facebook": "tsx scripts/login-social.ts facebook",
+    "intel:login:instagram": "tsx scripts/login-social.ts instagram"
   },
   "dependencies": {
+    "axios": "^1.19.0",
+    "better-sqlite3": "^13.0.3",
+    "cheerio": "^1.2.0",
     "next": "16.3.0",
+    "openai": "^7.4.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.11",
     "typescript": "^5"
   }
 }

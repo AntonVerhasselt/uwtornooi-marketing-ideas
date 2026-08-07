@@ -27,8 +27,15 @@ export default function Home() {
           >
             uwtornooi.be
           </a>
-          . Start with the Tournify SEO/SEA cluster — strategy and Dutch drafts
-          are ready to explore.
+          . Club data has a live MVP in{" "}
+          <a
+            href="/intel"
+            className="font-medium text-green-dark underline-offset-2 hover:underline"
+          >
+            /intel
+          </a>
+          ; the Tournify SEO/SEA cluster has strategy and Dutch drafts ready to
+          explore.
         </p>
       </section>
 
@@ -91,10 +98,10 @@ export default function Home() {
           How to use this site
         </p>
         <p className="text-[15px] leading-relaxed text-ink-muted">
-          Homepage is the map. Idea 3 holds the Tournify strategy plus draft
-          pages ready to ship to uwtornooi.be. Idea 2 has the planned cold
-          sequence; idea 4 is the reactive social-alert brief. Club data (idea
-          1) remains the lead-pipeline dependency for both outreach tracks.
+          Homepage is the map. Club data opens the tournament intel dashboard
+          at /intel. Idea 3 holds the Tournify strategy plus draft pages ready
+          to ship to uwtornooi.be. Idea 2 has the planned cold sequence; idea 4
+          is the reactive social-alert brief.
         </p>
       </section>
 

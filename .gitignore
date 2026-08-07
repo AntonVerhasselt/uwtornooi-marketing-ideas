@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local scrape artifacts / sqlite journals
+data/*.db-wal
+data/*.db-shm
+scripts/_probe-*.mjs
+
+# social login sessions (never commit)
+data/auth/

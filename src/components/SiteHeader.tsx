@@ -26,6 +26,18 @@ export function SiteHeader() {
             Overview
           </Link>
           <Link
+            href="/intel"
+            className="rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink"
+          >
+            Tournament intel
+          </Link>
+          <Link
+            href="/intel/auth"
+            className="hidden rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink sm:inline"
+          >
+            Social login
+          </Link>
+          <Link
             href="/ideeen/seo-concurrent"
             className="rounded-[11px] px-3 py-2 transition-colors hover:bg-green-tint hover:text-ink"
           >

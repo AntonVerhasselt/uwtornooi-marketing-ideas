@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { IdeaPageShell, Section } from "@/components/IdeaPageShell";
 import { getIdea } from "@/lib/ideas";
 import { notFound } from "next/navigation";
@@ -15,54 +16,43 @@ export default function ClubDataPage() {
 
   return (
     <IdeaPageShell idea={idea}>
-      <Section title="Intent">
+      <Section title="Status">
         <p>
-          Build a local pipeline that finds Flemish football clubs likely to
-          organise tournaments, so outreach (idea 2) has real context instead of
-          generic cold spam.
+          MVP is implemented under{" "}
+          <Link href="/intel" className="font-medium text-green-dark hover:underline">
+            /intel
+          </Link>
+          . Pipeline: RBFA import → website crawl → Facebook/Instagram/blog scrape
+          → GPT-5.6 Luna classification → SQLite tournament DB.
         </p>
       </Section>
 
-      <Section title="Planned pipeline">
+      <Section title="Pipeline">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
-            Scrape club data from{" "}
-            <strong className="font-medium text-ink">Voetbal Vlaanderen</strong>{" "}
-            and store it in a local SQLite database.
+            Import Antwerp provincial clubs from Voetbal Vlaanderen GraphQL
+            (`getTeamsInSeries` + `getClubInfo`).
+          </li>
+          <li>Crawl each club website for Facebook, Instagram, and tournament pages.</li>
+          <li>
+            Scrape ~16 months of Facebook / Instagram / blog content with a custom
+            Playwright + Cheerio scraper.
           </li>
           <li>
-            For each club website, scrape the site to extract Facebook and
-            Instagram links.
-          </li>
-          <li>
-            Using website + Facebook page + Instagram account, scrape posts from
-            the past ~16 months.
-          </li>
-          <li>
-            Detect posts about tournaments the club organised (not just
-            participated in).
+            Analyze posts in batches with <strong>GPT-5.6 Luna</strong> (medium
+            reasoning). Store only confirmed tournament posts.
           </li>
         </ol>
       </Section>
 
-      <Section title="Outputs we want">
-        <ul className="list-disc space-y-2 pl-5">
-          <li>Club identity + contact surface (site, FB, IG)</li>
-          <li>Evidence posts that mention a self-organised tournament</li>
-          <li>Timestamps / season context for outreach timing</li>
+      <Section title="Commands">
+        <ul className="list-disc space-y-2 pl-5 font-mono text-sm">
+          <li>npm run intel:import</li>
+          <li>npm run intel:crawl</li>
+          <li>npm run intel:scrape</li>
+          <li>npm run intel:analyze</li>
+          <li>npm run intel:pipeline</li>
         </ul>
-      </Section>
-
-      <Section title="Status for agents">
-        <p>
-          <strong className="font-medium text-ink">Do not start implementing</strong>{" "}
-          this track yet. More product and scraping detail will follow. Keep
-          this page as the brief holder until then.
-        </p>
-        <p className="rounded-[11px] bg-green-tint px-4 py-3 text-green-dark">
-          Next: flesh out sources, fields, and detection rules — then hand to a
-          dedicated agent.
-        </p>
       </Section>
     </IdeaPageShell>
   );
