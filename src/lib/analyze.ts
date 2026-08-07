@@ -37,6 +37,9 @@ Not tournaments:
 - player announcements
 - general club news
 - family days / fun days unless they are football tournaments
+- federation / association cups the club only plays in (Croky Cup, Beker van België, Beker van Vlaanderen, Beker van Antwerpen, provincial cups) unless the club itself organises the event
+
+Only mark isTournament=true when the club organises (hosts) the tournament.
 
 Return JSON only.`;
 
