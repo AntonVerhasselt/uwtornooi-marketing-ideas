@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s · UwTornooi ideas",
   },
   description:
-    "Working overview of marketing and sales ideas for UwTornooi.be — club data, cold outreach, and Tournify SEO/SEA content.",
+    "Working overview of marketing and sales ideas for UwTornooi.be — club data, cold outreach, social alerts, and Tournify SEO/SEA content.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
