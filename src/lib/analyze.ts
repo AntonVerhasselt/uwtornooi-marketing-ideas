@@ -28,7 +28,9 @@ const SYSTEM_PROMPT = `You analyze football club Facebook/Instagram/blog posts.
 
 Determine if this post is related to one or more football tournaments organized (hosted) by the club.
 
-A club can organise several tournaments (different age groups, cups, years). Extract EACH distinct club-organised tournament mentioned.
+A club can organise several tournaments (different cups or years). Extract EACH truly distinct club-organised tournament mentioned.
+
+When one cup spans multiple days or age categories (e.g. Absolute Teamsport Cup U8-U13 on Sat and U14-U17 on Sun, plus a registration form), prefer ONE tournament object: use the start day as eventDate and note the full date range / age span in summary. Do not explode the same cup into many objects. Still return multiple objects when names/years clearly differ (e.g. Absolute Teamsport Cup vs Young Talents Cup).
 
 Tournament examples:
 - youth tournaments

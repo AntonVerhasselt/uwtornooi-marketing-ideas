@@ -8,7 +8,7 @@ import type { CrmStatus } from "@/lib/db";
 import {
   getContactsForClubs,
   getDashboardStats,
-  getPipelineLeads,
+  getPipelineEventLeads,
 } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +63,29 @@ function ChannelLinks({
   );
 }
 
+function formatEventDates(
+  start: string | null,
+  end: string | null,
+): string {
+  if (!start) return "—";
+  if (end && end !== start) return `${start} – ${end}`;
+  return start;
+}
+
+function uniqueSources(
+  sources: Array<{ source: string | null; evidence_url: string | null }>,
+) {
+  const seen = new Set<string>();
+  const out: typeof sources = [];
+  for (const s of sources) {
+    const key = `${s.source || ""}|${s.evidence_url || ""}`;
+    if (!s.evidence_url || seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
 export default async function IntelPipelinePage({
   searchParams,
 }: {
@@ -76,7 +99,7 @@ export default async function IntelPipelinePage({
 
   const [stats, leads] = await Promise.all([
     getDashboardStats(),
-    getPipelineLeads({
+    getPipelineEventLeads({
       status: statusFilter === "all" ? "all" : statusFilter,
       limit: 80,
     }),
@@ -99,8 +122,8 @@ export default async function IntelPipelinePage({
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink-muted">
             Clubs with detected self-organised tournaments — channels, RBFA
-            contacts, and the Facebook / Instagram / blog post where we found
-            each event.
+            contacts, and the Facebook / Instagram / blog pages that evidence
+            each clustered event.
           </p>
         </div>
         <Link
@@ -152,6 +175,7 @@ export default async function IntelPipelinePage({
         <ul className="space-y-4">
           {leads.map((lead) => {
             const contacts = contactsByClub.get(lead.club_id) || [];
+            const sources = uniqueSources(lead.sources);
             return (
               <li
                 key={lead.id}
@@ -174,17 +198,17 @@ export default async function IntelPipelinePage({
                       ) : null}
                     </div>
                     <p className="mt-2 text-[15px] font-medium text-ink">
-                      {lead.tournament_name || "Tournament"}
-                      {lead.age_group ? (
+                      {lead.name || "Tournament"}
+                      {lead.age_groups ? (
                         <span className="font-normal text-ink-muted">
                           {" "}
-                          · {lead.age_group}
+                          · {lead.age_groups}
                         </span>
                       ) : null}
                     </p>
                     <p className="mt-1 text-sm text-ink-muted">
                       <span className="font-medium text-ink">
-                        {lead.event_date}
+                        {formatEventDates(lead.start_date, lead.end_date)}
                       </span>
                       {lead.registration_date
                         ? ` · registration ${lead.registration_date}`
@@ -198,17 +222,22 @@ export default async function IntelPipelinePage({
                         {lead.summary}
                       </p>
                     ) : null}
-                    <div className="mt-3">
-                      <EvidenceLink
-                        source={lead.evidence_source}
-                        url={lead.evidence_url}
-                      />
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                      {sources.length > 0 ? (
+                        sources.map((s, i) => (
+                          <EvidenceLink
+                            key={`${s.evidence_url}-${i}`}
+                            source={s.source}
+                            url={s.evidence_url}
+                          />
+                        ))
+                      ) : (
+                        <EvidenceLink
+                          source={lead.evidence_source}
+                          url={lead.evidence_url}
+                        />
+                      )}
                     </div>
-                    {lead.post_snippet ? (
-                      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-ink-faint">
-                        “{lead.post_snippet}”
-                      </p>
-                    ) : null}
                   </div>
                   <div className="w-full shrink-0 space-y-3 lg:w-64">
                     <div>

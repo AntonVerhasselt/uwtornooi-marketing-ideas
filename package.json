@@ -12,6 +12,7 @@
     "intel:crawl": "tsx scripts/crawl-websites.ts",
     "intel:scrape": "tsx scripts/scrape-social.ts",
     "intel:analyze": "tsx scripts/analyze-posts.ts",
+    "intel:cluster": "tsx scripts/cluster-tournaments.ts",
     "intel:pipeline": "tsx scripts/run-pipeline.ts",
     "intel:login:facebook": "tsx scripts/login-social.ts facebook",
     "intel:login:instagram": "tsx scripts/login-social.ts instagram"

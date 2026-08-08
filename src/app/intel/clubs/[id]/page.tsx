@@ -9,6 +9,7 @@ import {
   getClub,
   getClubContacts,
   getClubPosts,
+  getClubTournamentEvents,
   getClubTournamentsWithEvidence,
 } from "@/lib/queries";
 
@@ -22,6 +23,29 @@ function pct(confidence: number | null): string {
 function yearOf(date: string | null): string {
   if (!date) return "Unknown year";
   return date.slice(0, 4);
+}
+
+function formatEventDates(
+  start: string | null,
+  end: string | null,
+): string {
+  if (!start) return "—";
+  if (end && end !== start) return `${start} – ${end}`;
+  return start;
+}
+
+function uniqueSources(
+  sources: Array<{ source: string | null; evidence_url: string | null }>,
+) {
+  const seen = new Set<string>();
+  const out: typeof sources = [];
+  for (const s of sources) {
+    const key = `${s.source || ""}|${s.evidence_url || ""}`;
+    if (!s.evidence_url || seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
 }
 
 function Channel({
@@ -64,25 +88,42 @@ export default async function ClubDetailPage({
   const club = await getClub(id);
   if (!club) notFound();
 
-  const [tournaments, posts, contacts] = await Promise.all([
+  const [events, rawSignals, posts, contacts] = await Promise.all([
+    getClubTournamentEvents(id),
     getClubTournamentsWithEvidence(id),
     getClubPosts(id),
     getClubContacts(id),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = tournaments.filter(
+  const useEvents = events.length > 0;
+
+  const upcomingEvents = events.filter(
+    (e) => e.start_date && e.start_date >= today,
+  );
+  const pastEvents = events.filter(
+    (e) => !e.start_date || e.start_date < today,
+  );
+
+  const upcomingRaw = rawSignals.filter(
     (t) => t.event_date && t.event_date >= today,
   );
-  const past = tournaments.filter(
+  const pastRaw = rawSignals.filter(
     (t) => !t.event_date || t.event_date < today,
   );
 
-  const byYear = new Map<string, typeof past>();
-  for (const t of past) {
-    const y = yearOf(t.event_date);
+  const byYear = new Map<string, typeof pastEvents>();
+  for (const e of pastEvents) {
+    const y = yearOf(e.start_date);
     if (!byYear.has(y)) byYear.set(y, []);
-    byYear.get(y)!.push(t);
+    byYear.get(y)!.push(e);
+  }
+
+  const rawByYear = new Map<string, typeof pastRaw>();
+  for (const t of pastRaw) {
+    const y = yearOf(t.event_date);
+    if (!rawByYear.has(y)) rawByYear.set(y, []);
+    rawByYear.get(y)!.push(t);
   }
 
   return (
@@ -156,41 +197,98 @@ export default async function ClubDetailPage({
         <h2 className="ut-display mb-2 text-2xl font-extrabold text-ink">
           Upcoming tournaments
         </h2>
-        <p className="mb-4 text-sm text-ink-muted">
-          {upcoming.length} upcoming · each row links to the post or blog where
-          it was found
-        </p>
-        {upcoming.length === 0 ? (
-          <p className="text-sm text-ink-muted">No upcoming tournament dates.</p>
+        {useEvents ? (
+          <>
+            <p className="mb-4 text-sm text-ink-muted">
+              {upcomingEvents.length} clustered event
+              {upcomingEvents.length === 1 ? "" : "s"} · source links under each
+            </p>
+            {upcomingEvents.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                No upcoming tournament dates.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {upcomingEvents.map((e) => {
+                  const sources = uniqueSources(e.sources);
+                  return (
+                    <li
+                      key={e.id}
+                      className="rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3"
+                    >
+                      <p className="font-medium text-ink">
+                        {e.name || "Tournament"}
+                        {e.age_groups ? ` · ${e.age_groups}` : ""}
+                      </p>
+                      <dl className="mt-2 grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
+                        <div>
+                          Date: {formatEventDates(e.start_date, e.end_date)}
+                        </div>
+                        <div>Registration: {e.registration_date || "—"}</div>
+                        <div>Category: {e.category || "—"}</div>
+                        <div>Confidence: {pct(e.confidence)}</div>
+                      </dl>
+                      {e.summary ? (
+                        <p className="mt-2 text-sm text-ink-muted">
+                          {e.summary}
+                        </p>
+                      ) : null}
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                        {sources.map((s, i) => (
+                          <EvidenceLink
+                            key={`${s.evidence_url}-${i}`}
+                            source={s.source}
+                            url={s.evidence_url}
+                          />
+                        ))}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
         ) : (
-          <ul className="space-y-3">
-            {upcoming.map((t) => (
-              <li
-                key={t.id}
-                className="rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3"
-              >
-                <p className="font-medium text-ink">
-                  {t.tournament_name || "Tournament"}
-                  {t.age_group ? ` · ${t.age_group}` : ""}
-                </p>
-                <dl className="mt-2 grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
-                  <div>Date: {t.event_date || "—"}</div>
-                  <div>Registration: {t.registration_date || "—"}</div>
-                  <div>Category: {t.category || "—"}</div>
-                  <div>Confidence: {pct(t.confidence)}</div>
-                </dl>
-                {t.summary ? (
-                  <p className="mt-2 text-sm text-ink-muted">{t.summary}</p>
-                ) : null}
-                <div className="mt-3">
-                  <EvidenceLink
-                    source={t.evidence_source}
-                    url={t.evidence_url}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+          <>
+            <p className="mb-4 text-sm text-ink-muted">
+              {upcomingRaw.length} upcoming · each row links to the post or blog
+              where it was found
+            </p>
+            {upcomingRaw.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                No upcoming tournament dates.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {upcomingRaw.map((t) => (
+                  <li
+                    key={t.id}
+                    className="rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3"
+                  >
+                    <p className="font-medium text-ink">
+                      {t.tournament_name || "Tournament"}
+                      {t.age_group ? ` · ${t.age_group}` : ""}
+                    </p>
+                    <dl className="mt-2 grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
+                      <div>Date: {t.event_date || "—"}</div>
+                      <div>Registration: {t.registration_date || "—"}</div>
+                      <div>Category: {t.category || "—"}</div>
+                      <div>Confidence: {pct(t.confidence)}</div>
+                    </dl>
+                    {t.summary ? (
+                      <p className="mt-2 text-sm text-ink-muted">{t.summary}</p>
+                    ) : null}
+                    <div className="mt-3">
+                      <EvidenceLink
+                        source={t.evidence_source}
+                        url={t.evidence_url}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
 
@@ -198,50 +296,150 @@ export default async function ClubDetailPage({
         <h2 className="ut-display mb-2 text-2xl font-extrabold text-ink">
           Tournament history
         </h2>
-        <p className="mb-4 text-sm text-ink-muted">
-          {past.length} past / undated signal
-          {past.length === 1 ? "" : "s"}
-        </p>
-        {past.length === 0 ? (
-          <p className="text-sm text-ink-muted">No older tournament signals.</p>
-        ) : (
-          <div className="space-y-6">
-            {[...byYear.entries()].map(([year, items]) => (
-              <div key={year}>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-green-dark">
-                  {year}
-                </h3>
-                <ul className="space-y-3">
-                  {items.map((t) => (
-                    <li
-                      key={t.id}
-                      className="rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3"
-                    >
-                      <p className="font-medium text-ink">
-                        {t.tournament_name || "Tournament"}
-                        {t.age_group ? ` · ${t.age_group}` : ""}
-                      </p>
-                      <dl className="mt-2 grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
-                        <div>Date: {t.event_date || "—"}</div>
-                        <div>Confidence: {pct(t.confidence)}</div>
-                      </dl>
-                      {t.summary ? (
-                        <p className="mt-2 text-sm text-ink-muted">{t.summary}</p>
-                      ) : null}
-                      <div className="mt-3">
-                        <EvidenceLink
-                          source={t.evidence_source}
-                          url={t.evidence_url}
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+        {useEvents ? (
+          <>
+            <p className="mb-4 text-sm text-ink-muted">
+              {pastEvents.length} past / undated event
+              {pastEvents.length === 1 ? "" : "s"}
+            </p>
+            {pastEvents.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                No older tournament events.
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {[...byYear.entries()].map(([year, items]) => (
+                  <div key={year}>
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-green-dark">
+                      {year}
+                    </h3>
+                    <ul className="space-y-3">
+                      {items.map((e) => {
+                        const sources = uniqueSources(e.sources);
+                        return (
+                          <li
+                            key={e.id}
+                            className="rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3"
+                          >
+                            <p className="font-medium text-ink">
+                              {e.name || "Tournament"}
+                              {e.age_groups ? ` · ${e.age_groups}` : ""}
+                            </p>
+                            <dl className="mt-2 grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
+                              <div>
+                                Date:{" "}
+                                {formatEventDates(e.start_date, e.end_date)}
+                              </div>
+                              <div>Confidence: {pct(e.confidence)}</div>
+                            </dl>
+                            {e.summary ? (
+                              <p className="mt-2 text-sm text-ink-muted">
+                                {e.summary}
+                              </p>
+                            ) : null}
+                            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                              {sources.map((s, i) => (
+                                <EvidenceLink
+                                  key={`${s.evidence_url}-${i}`}
+                                  source={s.source}
+                                  url={s.evidence_url}
+                                />
+                              ))}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-ink-muted">
+              {pastRaw.length} past / undated signal
+              {pastRaw.length === 1 ? "" : "s"}
+            </p>
+            {pastRaw.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                No older tournament signals.
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {[...rawByYear.entries()].map(([year, items]) => (
+                  <div key={year}>
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-green-dark">
+                      {year}
+                    </h3>
+                    <ul className="space-y-3">
+                      {items.map((t) => (
+                        <li
+                          key={t.id}
+                          className="rounded-[11px] border border-border bg-bg-elevated/70 px-4 py-3"
+                        >
+                          <p className="font-medium text-ink">
+                            {t.tournament_name || "Tournament"}
+                            {t.age_group ? ` · ${t.age_group}` : ""}
+                          </p>
+                          <dl className="mt-2 grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
+                            <div>Date: {t.event_date || "—"}</div>
+                            <div>Confidence: {pct(t.confidence)}</div>
+                          </dl>
+                          {t.summary ? (
+                            <p className="mt-2 text-sm text-ink-muted">
+                              {t.summary}
+                            </p>
+                          ) : null}
+                          <div className="mt-3">
+                            <EvidenceLink
+                              source={t.evidence_source}
+                              url={t.evidence_url}
+                            />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
+
+      {useEvents && rawSignals.length > 0 ? (
+        <details className="mb-10 rounded-[11px] border border-border bg-bg-elevated/50 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium text-ink">
+            Raw signals ({rawSignals.length})
+          </summary>
+          <p className="mt-2 mb-3 text-xs text-ink-faint">
+            Individual AI-extracted rows before clustering — useful for
+            debugging duplicates.
+          </p>
+          <ul className="space-y-2">
+            {rawSignals.map((t) => (
+              <li
+                key={t.id}
+                className="border-t border-border/70 pt-2 text-sm text-ink-muted"
+              >
+                <span className="font-medium text-ink">
+                  {t.tournament_name || "Tournament"}
+                </span>
+                {t.age_group ? ` · ${t.age_group}` : ""}
+                {t.event_date ? ` · ${t.event_date}` : ""}
+                <div className="mt-1">
+                  <EvidenceLink
+                    source={t.evidence_source}
+                    url={t.evidence_url}
+                    compact
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       <section>
         <h2 className="ut-display mb-4 text-2xl font-extrabold text-ink">
