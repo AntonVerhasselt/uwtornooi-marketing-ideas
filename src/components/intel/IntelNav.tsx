@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 const LINKS = [
   { href: "/intel", label: "Pipeline" },
   { href: "/intel/clubs", label: "All clubs" },
@@ -7,13 +5,14 @@ const LINKS = [
   { href: "/intel/auth", label: "Social login" },
 ] as const;
 
+/** Hard navigations so CRM tabs still work if a browser extension breaks hydration. */
 export function IntelNav({ current }: { current?: string }) {
   return (
     <nav className="mb-8 flex flex-wrap gap-1 border-b border-border/80 pb-3 text-sm">
       {LINKS.map((link) => {
         const active = current === link.href;
         return (
-          <Link
+          <a
             key={link.href}
             href={link.href}
             className={
@@ -23,7 +22,7 @@ export function IntelNav({ current }: { current?: string }) {
             }
           >
             {link.label}
-          </Link>
+          </a>
         );
       })}
     </nav>

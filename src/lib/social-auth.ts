@@ -128,60 +128,88 @@ export async function launchEphemeralContext(
   });
 }
 
+/** Cookie-only check — never navigates (safe to poll during manual login). */
+export async function detectFacebookSessionCookies(
+  context: BrowserContext,
+): Promise<{ loggedIn: boolean; accountHint: string | null }> {
+  const cookies = await context.cookies("https://www.facebook.com");
+  const cUser = cookies.find((c) => c.name === "c_user");
+  const xs = cookies.find((c) => c.name === "xs");
+  const loggedIn = Boolean(cUser?.value && xs?.value);
+  return {
+    loggedIn,
+    accountHint: cUser?.value?.slice(0, 12) || null,
+  };
+}
+
+/** Cookie-only check — never navigates (safe to poll during manual login). */
+export async function detectInstagramSessionCookies(
+  context: BrowserContext,
+): Promise<{ loggedIn: boolean; accountHint: string | null }> {
+  const cookies = await context.cookies("https://www.instagram.com");
+  const session = cookies.find((c) => c.name === "sessionid");
+  const dsUser = cookies.find(
+    (c) => c.name === "ds_user" || c.name === "ds_user_id",
+  );
+  return {
+    loggedIn: Boolean(session?.value),
+    accountHint: dsUser?.value || (session?.value ? "session" : null),
+  };
+}
+
 export async function detectFacebookLoggedIn(
   context: BrowserContext,
 ): Promise<{ loggedIn: boolean; accountHint: string | null }> {
-  const page = context.pages()[0] || (await context.newPage());
-  await page.goto("https://www.facebook.com/", {
-    waitUntil: "domcontentloaded",
-    timeout: 60000,
-  });
-  await page.waitForTimeout(2000);
+  // Prefer cookies — do not navigate away from an in-progress login.
+  const fromCookies = await detectFacebookSessionCookies(context);
+  if (fromCookies.loggedIn) return fromCookies;
 
+  const page = context.pages()[0] || (await context.newPage());
   const url = page.url();
-  if (/login|checkpoint/i.test(url)) {
+  // Only load FB if we are not already on a facebook host (avoids login flicker).
+  if (!/facebook\.com/i.test(url)) {
+    await page.goto("https://www.facebook.com/", {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
+    await page.waitForTimeout(1500);
+  }
+
+  if (/login|checkpoint/i.test(page.url())) {
     return { loggedIn: false, accountHint: null };
   }
 
-  const loggedIn = await page.evaluate(() => {
-    const hasNav = Boolean(document.querySelector('[role="navigation"]'));
-    const loginForm = Boolean(
-      document.querySelector('input[name="email"], input[name="pass"]'),
-    );
-    return hasNav && !loginForm;
-  }).catch(() => false);
+  const loggedIn = await page
+    .evaluate(() => {
+      const hasNav = Boolean(document.querySelector('[role="navigation"]'));
+      const loginForm = Boolean(
+        document.querySelector('input[name="email"], input[name="pass"]'),
+      );
+      return hasNav && !loginForm;
+    })
+    .catch(() => false);
 
-  // Stronger check: cookies
-  const cookies = await context.cookies("https://www.facebook.com");
-  const hasCUser = cookies.some((c) => c.name === "c_user");
-  const hint =
-    cookies.find((c) => c.name === "c_user")?.value?.slice(0, 12) || null;
-
-  return { loggedIn: Boolean(loggedIn || hasCUser), accountHint: hint };
+  const again = await detectFacebookSessionCookies(context);
+  return {
+    loggedIn: Boolean(loggedIn || again.loggedIn),
+    accountHint: again.accountHint,
+  };
 }
 
 export async function detectInstagramLoggedIn(
   context: BrowserContext,
 ): Promise<{ loggedIn: boolean; accountHint: string | null }> {
+  const fromCookies = await detectInstagramSessionCookies(context);
+  if (fromCookies.loggedIn) return fromCookies;
+
   const page = context.pages()[0] || (await context.newPage());
-  await page.goto("https://www.instagram.com/", {
-    waitUntil: "domcontentloaded",
-    timeout: 60000,
-  });
-  await page.waitForTimeout(2500);
+  if (!/instagram\.com/i.test(page.url())) {
+    await page.goto("https://www.instagram.com/", {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
+    await page.waitForTimeout(1500);
+  }
 
-  const cookies = await context.cookies("https://www.instagram.com");
-  const session = cookies.find((c) => c.name === "sessionid");
-  const dsUser = cookies.find((c) => c.name === "ds_user" || c.name === "ds_user_id");
-
-  const loginForm = await page
-    .locator('input[name="username"], input[name="password"]')
-    .count()
-    .catch(() => 0);
-
-  const loggedIn = Boolean(session?.value) && loginForm === 0;
-  return {
-    loggedIn,
-    accountHint: dsUser?.value || (session ? "session" : null),
-  };
+  return detectInstagramSessionCookies(context);
 }

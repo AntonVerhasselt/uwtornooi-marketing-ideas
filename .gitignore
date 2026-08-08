@@ -43,6 +43,12 @@ next-env.d.ts
 # local scrape artifacts / sqlite journals
 data/*.db-wal
 data/*.db-shm
+data/*.db.bak*
+data/*.bak-corrupt
+data/*.working.db
+data/*.commit.db
+data/recovery-*/
+data/scrape-rescue-*/
 scripts/_probe-*.mjs
 
 # social login sessions (never commit)

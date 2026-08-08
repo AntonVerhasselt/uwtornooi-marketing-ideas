@@ -28,9 +28,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${display.variable} ${body.variable} h-full antialiased`}
     >
-      <body className="ut-atmosphere flex min-h-full flex-col">
+      <body
+        suppressHydrationWarning
+        className="ut-atmosphere flex min-h-full flex-col"
+      >
         <SiteHeader />
         {children}
         <footer className="mt-auto border-t border-border/80 py-6 text-center text-xs text-ink-faint">

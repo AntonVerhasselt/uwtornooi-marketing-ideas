@@ -59,6 +59,8 @@ export function getDb(): Database.Database {
 
   const dbPath = resolveDbPath();
   const db = new Database(dbPath);
+  // Avoid stealing the live DB from a long-running scrape/import.
+  db.pragma("busy_timeout = 8000");
   // WAL needs sidecar files; avoid it on read-only / ephemeral hosts.
   db.pragma(isServerless() ? "journal_mode = DELETE" : "journal_mode = WAL");
   db.pragma("foreign_keys = ON");

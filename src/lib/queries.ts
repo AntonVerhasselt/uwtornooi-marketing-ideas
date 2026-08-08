@@ -19,6 +19,8 @@ export type DashboardStats = {
   tournamentPosts: number;
   upcomingTournaments: number;
   upcomingClubs: number;
+  /** Clubs with a same-month-last-year signal and no confirmed date yet. */
+  seasonalClubs: number;
   contactsLoaded: number;
   candidatePosts: number;
   analyzedCandidates: number;
@@ -72,6 +74,65 @@ export type PipelineEventLead = TournamentEventRow & {
   sources: EventSourceEvidence[];
 };
 
+/** Past tournament projected forward one year (seasonal recurrence). */
+export type SeasonalRecurrenceLead = {
+  id: number;
+  club_id: number;
+  club_name: string;
+  locality: string | null;
+  website_url: string | null;
+  facebook_url: string | null;
+  instagram_url: string | null;
+  crm_status: CrmStatus;
+  name: string | null;
+  category: string | null;
+  age_groups: string | null;
+  /** Original past event date (e.g. 2025-11-12). */
+  last_year_date: string;
+  /** Projected next occurrence (last_year_date + 1 year). */
+  expected_date: string;
+  summary: string | null;
+  confidence: number | null;
+  evidence_source: string | null;
+  evidence_url: string | null;
+  sources: EventSourceEvidence[];
+};
+
+function addOneYear(isoDate: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!m) return null;
+  const year = Number(m[1]) + 1;
+  const month = m[2];
+  const day = m[3];
+  // Clamp Feb 29 → Feb 28 on non-leap years
+  if (month === "02" && day === "29") {
+    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    return `${year}-02-${leap ? "29" : "28"}`;
+  }
+  return `${year}-${month}-${day}`;
+}
+
+function addMonths(isoDate: string, deltaMonths: number): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!m) return null;
+  const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  dt.setUTCMonth(dt.getUTCMonth() + deltaMonths);
+  return dt.toISOString().slice(0, 10);
+}
+
+function normalizeNameKey(name: string | null | undefined): string {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .replace(/\b20\d{2}\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function monthKey(isoDate: string): string {
+  return isoDate.slice(5, 7);
+}
+
 function hasTournamentEvents(): boolean {
   const row = getDb()
     .prepare(`SELECT COUNT(*) AS c FROM tournament_events`)
@@ -120,6 +181,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
           .get(today) as { c: number }
       ).c;
 
+  const seasonal = await getSeasonalRecurrenceLeads({ limit: 200 });
+
   return {
     totalClubs: (
       db.prepare(`SELECT COUNT(*) AS c FROM clubs`).get() as { c: number }
@@ -150,6 +213,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     ).c,
     upcomingTournaments,
     upcomingClubs,
+    seasonalClubs: new Set(seasonal.map((s) => s.club_id)).size,
     contactsLoaded: (
       db.prepare(`SELECT COUNT(*) AS c FROM club_contacts`).get() as {
         c: number;
@@ -439,9 +503,48 @@ export async function getPipelineEventLeads(
   const status = opts.status && opts.status !== "all" ? opts.status : null;
 
   if (!hasTournamentEvents()) {
-    // Fall back to raw tournament signals shaped as event leads
+    // Fall back to raw tournament signals shaped as event leads.
+    // Also pull undated signals for those clubs (registration pages, etc.)
+    // so the UI can group them with the matching upcoming tournament.
     const raw = await getPipelineLeads(opts);
-    return raw.map((r) => ({
+    const clubIds = [...new Set(raw.map((r) => r.club_id))];
+    const seenIds = new Set(raw.map((r) => r.id));
+    const extras =
+      clubIds.length === 0
+        ? []
+        : (getDb()
+            .prepare(
+              `SELECT
+                 t.*,
+                 c.name AS club_name,
+                 c.locality,
+                 c.website_url,
+                 c.facebook_url,
+                 c.instagram_url,
+                 c.crm_status,
+                 cp.source AS evidence_source,
+                 COALESCE(NULLIF(cp.source_url, ''), NULLIF(p.facebook_post_url, '')) AS evidence_url,
+                 p.post_date,
+                 CASE
+                   WHEN length(p.post_text) > 180 THEN substr(p.post_text, 1, 180) || '…'
+                   ELSE p.post_text
+                 END AS post_snippet
+               FROM tournaments t
+               JOIN clubs c ON c.id = t.club_id
+               LEFT JOIN posts p ON p.id = t.post_id
+               LEFT JOIN candidate_posts cp ON cp.id = p.candidate_post_id
+               WHERE t.club_id IN (${clubIds.map(() => "?").join(",")})
+                 AND (t.event_date IS NULL OR t.event_date = '')
+                 AND (? IS NULL OR c.crm_status = ?)`,
+            )
+            .all(...clubIds, status, status) as TournamentEvidence[]);
+
+    const combined = [
+      ...raw,
+      ...extras.filter((r) => !seenIds.has(r.id)),
+    ];
+
+    return combined.map((r) => ({
       id: r.id,
       club_id: r.club_id,
       name: r.tournament_name,
@@ -517,6 +620,199 @@ export async function getPipelineEventLeads(
       sources,
     };
   });
+}
+
+/**
+ * Clubs that organised a tournament around this time last year, with no
+ * confirmed upcoming date yet for that same cup / month.
+ * Projected date = past event date + 1 year.
+ */
+export async function getSeasonalRecurrenceLeads(
+  opts: { status?: CrmStatus | "all"; limit?: number } = {},
+): Promise<SeasonalRecurrenceLead[]> {
+  await connection();
+  const today = new Date().toISOString().slice(0, 10);
+  const limit = opts.limit ?? 80;
+  const status = opts.status && opts.status !== "all" ? opts.status : null;
+
+  // Recent history only (skip ancient OCR/parse junk like 2002).
+  const historyFrom = addMonths(today, -18);
+  // Look ahead up to 12 months for the projected anniversary.
+  const horizon = addOneYear(today);
+  if (!historyFrom || !horizon) return [];
+
+  type PastRow = {
+    id: number;
+    club_id: number;
+    name: string | null;
+    category: string | null;
+    age_groups: string | null;
+    last_year_date: string;
+    summary: string | null;
+    confidence: number | null;
+    club_name: string;
+    locality: string | null;
+    website_url: string | null;
+    facebook_url: string | null;
+    instagram_url: string | null;
+    crm_status: CrmStatus;
+    evidence_source: string | null;
+    evidence_url: string | null;
+    post_id: number | null;
+  };
+
+  const useEvents = hasTournamentEvents();
+
+  const pastRows = (
+    useEvents
+      ? (getDb()
+          .prepare(
+            `SELECT
+               e.id,
+               e.club_id,
+               e.name,
+               e.category,
+               e.age_groups,
+               e.start_date AS last_year_date,
+               e.summary,
+               e.confidence,
+               c.name AS club_name,
+               c.locality,
+               c.website_url,
+               c.facebook_url,
+               c.instagram_url,
+               c.crm_status,
+               NULL AS evidence_source,
+               NULL AS evidence_url,
+               NULL AS post_id
+             FROM tournament_events e
+             JOIN clubs c ON c.id = e.club_id
+             WHERE e.start_date IS NOT NULL
+               AND e.start_date >= ?
+               AND e.start_date < ?
+               AND (? IS NULL OR c.crm_status = ?)
+             ORDER BY e.start_date DESC`,
+          )
+          .all(historyFrom, today, status, status) as PastRow[])
+      : (getDb()
+          .prepare(
+            `SELECT
+               t.id,
+               t.club_id,
+               t.tournament_name AS name,
+               t.category,
+               t.age_group AS age_groups,
+               t.event_date AS last_year_date,
+               t.summary,
+               t.confidence,
+               c.name AS club_name,
+               c.locality,
+               c.website_url,
+               c.facebook_url,
+               c.instagram_url,
+               c.crm_status,
+               cp.source AS evidence_source,
+               COALESCE(NULLIF(cp.source_url, ''), NULLIF(p.facebook_post_url, '')) AS evidence_url,
+               t.post_id
+             FROM tournaments t
+             JOIN clubs c ON c.id = t.club_id
+             LEFT JOIN posts p ON p.id = t.post_id
+             LEFT JOIN candidate_posts cp ON cp.id = p.candidate_post_id
+             WHERE t.event_date IS NOT NULL
+               AND t.event_date >= ?
+               AND t.event_date < ?
+               AND (? IS NULL OR c.crm_status = ?)
+             ORDER BY t.event_date DESC`,
+          )
+          .all(historyFrom, today, status, status) as PastRow[])
+  ).map((r) => ({
+    ...r,
+    evidence_url: resolveEvidenceUrl(r.evidence_url, null),
+  }));
+
+  // Confirmed upcoming — used to suppress seasonal duplicates.
+  const upcoming = await getPipelineEventLeads({
+    status: opts.status ?? "all",
+    limit: 500,
+  });
+  const upcomingByClub = new Map<number, PipelineEventLead[]>();
+  for (const u of upcoming) {
+    const list = upcomingByClub.get(u.club_id) || [];
+    list.push(u);
+    upcomingByClub.set(u.club_id, list);
+  }
+
+  const eventIds = useEvents ? pastRows.map((r) => r.id) : [];
+  const sourcesByEvent = useEvents ? loadEventSources(eventIds) : new Map();
+
+  const out: SeasonalRecurrenceLead[] = [];
+  const seen = new Set<string>();
+
+  for (const row of pastRows) {
+    const expected = addOneYear(row.last_year_date);
+    if (!expected || expected < today || expected > horizon) continue;
+
+    const nameKey = normalizeNameKey(row.name);
+    const month = monthKey(expected);
+    const clubUpcoming = upcomingByClub.get(row.club_id) || [];
+
+    const alreadyConfirmed = clubUpcoming.some((u) => {
+      if (!u.start_date) return false;
+      const sameMonth = monthKey(u.start_date) === month;
+      const sameName =
+        nameKey.length > 0 && normalizeNameKey(u.name) === nameKey;
+      // Suppress if same cup name, or any confirmed event in that calendar month.
+      return sameName || sameMonth;
+    });
+    if (alreadyConfirmed) continue;
+
+    const dedupeKey = `${row.club_id}|${nameKey || row.id}|${month}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const sources: EventSourceEvidence[] = useEvents
+      ? sourcesByEvent.get(row.id) || []
+      : row.evidence_url
+        ? [
+            {
+              id: 0,
+              event_id: row.id,
+              tournament_id: row.id,
+              post_id: row.post_id,
+              source: row.evidence_source,
+              source_url: row.evidence_url,
+              evidence_url: row.evidence_url,
+            },
+          ]
+        : [];
+
+    const primary = sources[0];
+    out.push({
+      id: row.id,
+      club_id: row.club_id,
+      club_name: row.club_name,
+      locality: row.locality,
+      website_url: row.website_url,
+      facebook_url: row.facebook_url,
+      instagram_url: row.instagram_url,
+      crm_status: row.crm_status,
+      name: row.name,
+      category: row.category,
+      age_groups: row.age_groups,
+      last_year_date: row.last_year_date,
+      expected_date: expected,
+      summary: row.summary,
+      confidence: row.confidence,
+      evidence_source: primary?.source ?? row.evidence_source,
+      evidence_url: primary?.evidence_url ?? row.evidence_url,
+      sources,
+    });
+
+    if (out.length >= limit) break;
+  }
+
+  out.sort((a, b) => a.expected_date.localeCompare(b.expected_date));
+  return out;
 }
 
 export async function getContactsForClubs(

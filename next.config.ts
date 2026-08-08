@@ -1,6 +1,11 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep Turbopack rooted on this app (avoids picking up a parent package-lock).
+  turbopack: {
+    root: path.join(__dirname),
+  },
   serverExternalPackages: ["better-sqlite3"],
   // SQLite DB is opened at runtime via path, so Next file tracing won't
   // pick it up unless we include it for intel + API routes.

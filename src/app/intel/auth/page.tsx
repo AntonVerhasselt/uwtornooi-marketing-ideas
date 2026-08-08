@@ -37,7 +37,13 @@ function StatusCard({
       {loggedIn ? (
         <dl className="mb-4 space-y-1 text-sm text-ink-muted">
           <div>
-            Saved at: {savedAt ? new Date(savedAt).toLocaleString() : "—"}
+            Saved at:{" "}
+            {savedAt
+              ? new Date(savedAt).toLocaleString("nl-BE", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : "—"}
           </div>
           <div>Account hint: {accountHint || "—"}</div>
           <div className="text-ink">
