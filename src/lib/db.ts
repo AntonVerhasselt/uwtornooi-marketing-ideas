@@ -138,6 +138,33 @@ function migrate(db: Database.Database): void {
       FOREIGN KEY (post_id) REFERENCES posts(id)
     );
 
+    CREATE TABLE IF NOT EXISTS tournament_events (
+      id INTEGER PRIMARY KEY,
+      club_id INTEGER NOT NULL,
+      name TEXT,
+      category TEXT,
+      age_groups TEXT,
+      start_date DATE,
+      end_date DATE,
+      registration_date DATE,
+      summary TEXT,
+      confidence REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (club_id) REFERENCES clubs(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS tournament_event_sources (
+      id INTEGER PRIMARY KEY,
+      event_id INTEGER NOT NULL,
+      tournament_id INTEGER,
+      post_id INTEGER,
+      source TEXT,
+      source_url TEXT,
+      FOREIGN KEY (event_id) REFERENCES tournament_events(id) ON DELETE CASCADE,
+      FOREIGN KEY (tournament_id) REFERENCES tournaments(id),
+      FOREIGN KEY (post_id) REFERENCES posts(id)
+    );
+
     CREATE TABLE IF NOT EXISTS scrape_logs (
       id INTEGER PRIMARY KEY,
       club_id INTEGER,
@@ -164,6 +191,9 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_posts_club ON posts(club_id);
     CREATE INDEX IF NOT EXISTS idx_tournaments_club ON tournaments(club_id);
     CREATE INDEX IF NOT EXISTS idx_tournaments_event ON tournaments(event_date);
+    CREATE INDEX IF NOT EXISTS idx_tournament_events_club ON tournament_events(club_id);
+    CREATE INDEX IF NOT EXISTS idx_tournament_events_start ON tournament_events(start_date);
+    CREATE INDEX IF NOT EXISTS idx_tournament_event_sources_event ON tournament_event_sources(event_id);
     CREATE INDEX IF NOT EXISTS idx_candidate_analyzed ON candidate_posts(analyzed);
     CREATE INDEX IF NOT EXISTS idx_contacts_club ON club_contacts(club_id);
   `);
@@ -235,6 +265,29 @@ export type TournamentRow = {
   summary: string | null;
   confidence: number | null;
   created_at: string;
+};
+
+export type TournamentEventRow = {
+  id: number;
+  club_id: number;
+  name: string | null;
+  category: string | null;
+  age_groups: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  registration_date: string | null;
+  summary: string | null;
+  confidence: number | null;
+  created_at: string;
+};
+
+export type TournamentEventSourceRow = {
+  id: number;
+  event_id: number;
+  tournament_id: number | null;
+  post_id: number | null;
+  source: string | null;
+  source_url: string | null;
 };
 
 export type PostRow = {
