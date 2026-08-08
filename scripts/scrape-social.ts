@@ -61,6 +61,7 @@ async function main() {
   }
 
   const db = getDb();
+  const missingOnly = process.env.SCRAPE_MISSING_ONLY === "1";
   let clubs = db
     .prepare(
       `SELECT * FROM clubs
@@ -71,6 +72,20 @@ async function main() {
        ORDER BY id ASC`,
     )
     .all() as ClubRow[];
+
+  if (missingOnly) {
+    clubs = clubs.filter((club) => {
+      const row = db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM candidate_posts WHERE club_id = ?`,
+        )
+        .get(club.id) as { c: number };
+      return row.c === 0;
+    });
+    console.log(
+      `SCRAPE_MISSING_ONLY=1 → ${clubs.length} club(s) with zero candidate_posts`,
+    );
+  }
 
   if (limit > 0) clubs = clubs.slice(0, limit);
   console.log(`Scraping social/blog for ${clubs.length} clubs (months=${months})`);
